@@ -15,73 +15,7 @@
   </body>
 </html>
 
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <title>HTML 超链接生成器</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background: #f4f6f8;
-            padding: 40px;
-        }
-        .box {
-            background: white;
-            padding: 25px;
-            max-width: 500px;
-            margin: auto;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-        }
-        h2 {
-            text-align: center;
-        }
-        input, button, textarea {
-            width: 100%;
-            margin-top: 10px;
-            padding: 10px;
-            font-size: 14px;
-        }
-        textarea {
-            height: 80px;
-            resize: none;
-        }
-        button {
-            cursor: pointer;
-        }
-    </style>
-</head>
-<body>
 
-<div class="box">
-    <h2>HTML 超链接生成器</h2>
-
-    <input id="url" placeholder="请输入链接（例如 https://example.com）">
-    <input id="name" placeholder="请输入显示名称（例如 我的网页）">
-
-    <button onclick="generate()">生成 HTML 代码</button>
-
-    <textarea id="result" readonly placeholder="生成的 HTML 代码会显示在这里"></textarea>
-</div>
-
-<script>
-function generate() {
-    const url = document.getElementById("url").value.trim();
-    const name = document.getElementById("name").value.trim();
-
-    if (!url || !name) {
-        alert("请填写链接和名称！");
-        return;
-    }
-
-    const html = `<a href="${url}" target="_blank">${name}</a>`;
-    document.getElementById("result").value = html;
-}
-</script>
-
-</body>
-</html>
 
 <html>
   
@@ -93,4 +27,64 @@ function generate() {
 
 输入查看密码查看，输入编辑密码编辑
   </body>
+</html>
+
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Markdown 转 HTML 代码</title>
+    <script src="https://cdn.jsdelivr.net/npm/showdown@1.9.1/dist/showdown.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        textarea {
+            width: 100%;
+            height: 200px;
+            margin-bottom: 10px;
+        }
+        .output {
+            padding: 20px;
+            border: 1px solid #ccc;
+            background-color: #f9f9f9;
+            min-height: 150px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+    </style>
+</head>
+<body>
+    <h1>Markdown 转 HTML 代码</h1>
+    <textarea id="markdownInput" placeholder="在这里输入 Markdown"></textarea>
+    <br>
+    <button onclick="convertMarkdown()">转换为 HTML 代码</button>
+
+    <h2>生成的 HTML 代码：</h2>
+    <div id="output" class="output"></div>
+
+    <script>
+        function convertMarkdown() {
+            var markdownText = document.getElementById('markdownInput').value;
+            var converter = new showdown.Converter();
+            var htmlOutput = converter.makeHtml(markdownText);
+            var htmlCode = "<pre><code>" + escapeHtml(htmlOutput) + "</code></pre>";
+            document.getElementById('output').innerHTML = htmlCode;
+        }
+
+        function escapeHtml(str) {
+            return str.replace(/[&<>"']/g, function (char) {
+                return {
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    '"': '&quot;',
+                    "'": '&#039;'
+                }[char];
+            });
+        }
+    </script>
+</body>
 </html>
