@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>学生端 - 屏幕共享</title>
+</head>
+<body>
+<h2>学生端</h2>
+
+<input id="room" placeholder="频道">
+<button onclick="start()">开始共享</button>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"></script>
+
+<script>
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "你的",
+  authDomain: "你的",
+  projectId: "你的"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+let pc;
+
+async function start() {
+  const roomId = room.value;
+  pc = new RTCPeerConnection();
+
+  const stream = await navigator.mediaDevices.getDisplayMedia({ video:true });
+  stream.getTracks().forEach(t => pc.addTrack(t, stream));
+
+  pc.onicecandidate = e => {
+    if (e.candidate) {
+      setDoc(doc(db,"rooms",roomId), {
+        candidate: JSON.stringify(e.candidate)
+      }, { merge:true });
+    }
+  };
+
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+
+  await setDoc(doc(db,"rooms",roomId), {
+    offer: JSON.stringify(offer)
+  });
+
+  onSnapshot(doc(db,"rooms",roomId), snap => {
+    const d = snap.data();
+    if (d?.answer && !pc.currentRemoteDescription) {
+      pc.setRemoteDescription(JSON.parse(d.answer));
+    }
+  });
+}
+</script>
+</body>
+</html>
