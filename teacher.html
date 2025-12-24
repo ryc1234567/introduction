@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>教师端 - 查看屏幕</title>
+</head>
+<body>
+<h2>教师端</h2>
+
+<input id="room" placeholder="频道">
+<button onclick="connect()">连接</button>
+<br><br>
+<video id="v" autoplay playsinline style="width:90%"></video>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"></script>
+
+<script>
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "你的",
+  authDomain: "你的",
+  projectId: "你的"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+let pc;
+
+function connect() {
+  const roomId = room.value;
+  pc = new RTCPeerConnection();
+
+  pc.ontrack = e => v.srcObject = e.streams[0];
+
+  pc.onicecandidate = e => {
+    if (e.candidate) {
+      setDoc(doc(db,"rooms",roomId), {
+        teacherCandidate: JSON.stringify(e.candidate)
+      }, { merge:true });
+    }
+  };
+
+  onSnapshot(doc(db,"rooms",roomId), async snap => {
+    const d = snap.data();
+    if (d?.offer && !pc.currentRemoteDescription) {
+      await pc.setRemoteDescription(JSON.parse(d.offer));
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      await setDoc(doc(db,"rooms",roomId), {
+        answer: JSON.stringify(answer)
+      }, { merge:true });
+    }
+  });
+}
+</script>
+</body>
+</html>
