@@ -1,0 +1,1252 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>后台自动截屏控制程序 - 会话密码版</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d);
+            color: white;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: rgba(0, 0, 0, 0.7);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            background: linear-gradient(to right, #ff7e5f, #feb47b);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        
+        .description {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            margin-bottom: 20px;
+        }
+        
+        .control-panel {
+            background: rgba(30, 30, 60, 0.8);
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 30px;
+        }
+        
+        .control-title {
+            font-size: 1.4rem;
+            margin-bottom: 20px;
+            color: #4dabf7;
+        }
+        
+        .time-control {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        
+        .time-input {
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        
+        input[type="number"], input[type="password"] {
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            border: none;
+            background-color: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 1rem;
+        }
+        
+        .password-section {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+        }
+        
+        .password-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .password-controls button {
+            flex: 1;
+        }
+        
+        .buttons {
+            display: flex;
+            gap: 15px;
+            margin-top: 25px;
+        }
+        
+        button {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        #startBtn {
+            background: linear-gradient(to right, #00b09b, #96c93d);
+            color: white;
+            flex: 2;
+        }
+        
+        #stopBtn {
+            background: linear-gradient(to right, #ff416c, #ff4b2b);
+            color: white;
+            flex: 1;
+        }
+        
+        #captureBtn {
+            background: linear-gradient(to right, #2193b0, #6dd5ed);
+            color: white;
+            flex: 1;
+        }
+        
+        #minimizeBtn {
+            background: linear-gradient(to right, #8e2de2, #4a00e0);
+            color: white;
+        }
+        
+        #setPasswordBtn {
+            background: linear-gradient(to right, #8e2de2, #4a00e0);
+            color: white;
+        }
+        
+        #changePasswordBtn {
+            background: linear-gradient(to right, #f46b45, #eea849);
+            color: white;
+        }
+        
+        #stopStreamBtn {
+            background: linear-gradient(to right, #ff7e5f, #feb47b);
+            color: white;
+        }
+        
+        button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        
+        .status.active {
+            background-color: rgba(0, 255, 0, 0.2);
+        }
+        
+        .status.inactive {
+            background-color: rgba(255, 0, 0, 0.2);
+        }
+        
+        .gallery {
+            margin-top: 30px;
+        }
+        
+        .gallery-title {
+            font-size: 1.4rem;
+            margin-bottom: 20px;
+            color: #4dabf7;
+        }
+        
+        .screenshots {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        
+        .screenshot {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            overflow: hidden;
+            transition: transform 0.3s ease;
+        }
+        
+        .screenshot:hover {
+            transform: scale(1.05);
+        }
+        
+        .screenshot img {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+        }
+        
+        .screenshot-info {
+            padding: 10px;
+            font-size: 0.8rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .screenshot-actions {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .screenshot-actions button {
+            padding: 5px 10px;
+            font-size: 0.7rem;
+        }
+        
+        .empty-gallery {
+            text-align: center;
+            padding: 40px;
+            opacity: 0.7;
+            grid-column: 1 / -1;
+        }
+        
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            background: linear-gradient(to right, #00b09b, #96c93d);
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            transform: translateX(150%);
+            transition: transform 0.5s ease;
+            z-index: 1000;
+        }
+        
+        .notification.show {
+            transform: translateX(0);
+        }
+        
+        .notification.error {
+            background: linear-gradient(to right, #ff416c, #ff4b2b);
+        }
+        
+        .instructions {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+            font-size: 0.9rem;
+        }
+        
+        .instructions h3 {
+            color: #4dabf7;
+            margin-bottom: 10px;
+        }
+        
+        .instructions ul {
+            padding-left: 20px;
+        }
+        
+        .instructions li {
+            margin-bottom: 8px;
+        }
+        
+        .feature-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .feature {
+            flex: 1;
+            min-width: 200px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 15px;
+        }
+        
+        .feature h4 {
+            color: #4dabf7;
+            margin-bottom: 8px;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .modal-content {
+            background: linear-gradient(135deg, #1a2a6c, #b21f1f);
+            padding: 30px;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+        
+        .modal h3 {
+            margin-bottom: 20px;
+            text-align: center;
+            color: #4dabf7;
+        }
+        
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .modal-buttons button {
+            flex: 1;
+        }
+        
+        .password-status {
+            margin-top: 10px;
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+        
+        .minimized-indicator {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            transition: all 0.3s ease;
+        }
+        
+        .minimized-indicator:hover {
+            transform: scale(1.1);
+        }
+        
+        .minimized-indicator.active {
+            background: linear-gradient(to right, #00b09b, #96c93d);
+        }
+        
+        .minimized-indicator.inactive {
+            background: linear-gradient(to right, #ff416c, #ff4b2b);
+        }
+        
+        .minimized-indicator .icon {
+            font-size: 24px;
+            color: white;
+        }
+        
+        .background-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+        }
+        
+        .background-info {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+        
+        .security-badge {
+            display: inline-block;
+            background: linear-gradient(to right, #00b09b, #96c93d);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        
+        .stream-controls {
+            margin-top: 15px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+        }
+        
+        .stream-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .session-notice {
+            background: rgba(255, 193, 7, 0.2);
+            border-left: 4px solid #ffc107;
+            padding: 10px 15px;
+            margin-top: 10px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+        
+        @media (max-width: 768px) {
+            .time-control {
+                flex-direction: column;
+            }
+            
+            .buttons {
+                flex-direction: column;
+            }
+            
+            .screenshots {
+                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            }
+            
+            .feature-list {
+                flex-direction: column;
+            }
+            
+            .password-controls {
+                flex-direction: column;
+            }
+            
+            .background-controls {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            .stream-info {
+                flex-direction: column;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>后台自动截屏控制程序 <span class="security-badge">会话密码版</span></h1>
+            <p class="description">设置时间间隔，程序将在后台自动捕获整个屏幕截图 - 每次会话需要重新设置密码</p>
+        </header>
+        
+        <div class="control-panel">
+            <h2 class="control-title">截屏设置</h2>
+            
+            <div class="time-control">
+                <div class="time-input">
+                    <label for="minTime">最小间隔时间（分钟）</label>
+                    <input type="number" id="minTime" min="1" max="60" value="5">
+                </div>
+                
+                <div class="time-input">
+                    <label for="maxTime">最大间隔时间（分钟）</label>
+                    <input type="number" id="maxTime" min="1" max="60" value="10">
+                </div>
+            </div>
+            
+            <div class="password-section">
+                <h3>安全密码设置 <span class="security-badge">每次会话需要重新设置</span></h3>
+                <div class="session-notice">
+                    //<strong>注意：</strong> 每次启动或刷新页面后，密码会自动清空，需要重新设置密码。
+                </div>
+                <div class="time-input">
+                    <label for="passwordInput" id="passwordLabel">设置安全密码</label>
+                    <input type="password" id="passwordInput" placeholder="输入安全密码">
+                </div>
+                <div class="password-controls" id="passwordControls">
+                    <!-- 按钮将根据密码状态动态显示 -->
+                </div>
+                <div class="password-status" id="passwordStatus">未设置密码</div>
+            </div>
+            
+            <div class="stream-controls">
+                <div class="stream-info">
+                    <div>
+                        <h4>屏幕共享状态</h4>
+                        <p id="streamStatus">未激活</p>
+                    </div>
+                    <button id="stopStreamBtn" disabled>停止屏幕共享</button>
+                </div>
+            </div>
+            
+            <div class="buttons">
+                <button id="startBtn">开始自动截屏</button>
+                <button id="stopBtn" disabled>停止截屏</button>
+                <button id="captureBtn">立即截屏</button>
+                <button id="minimizeBtn">最小化到托盘</button>
+            </div>
+            
+            <div class="status inactive" id="status">
+                状态：未启动
+            </div>
+            
+            <div class="background-controls">
+                <div class="background-info">
+                    <p><strong>后台运行模式：</strong>程序在最小化后将继续在后台运行</p>
+                    <p><strong>会话安全模式：</strong>每次启动或刷新后密码自动清空，需要重新设置</p>
+                </div>
+                <div>
+                    <input type="checkbox" id="backgroundMode" checked>
+                    <label for="backgroundMode">启用后台运行</label>
+                </div>
+            </div>
+            
+            <div class="instructions">
+                <h3>使用说明：</h3>
+                <ul>
+                    <li>设置最小和最大截屏间隔时间（5-10分钟）</li>
+                    <li><strong>每次启动或刷新页面后，需要重新设置安全密码</strong></li>
+                    <li>点击"开始自动截屏"按钮启动程序</li>
+                    <li><strong>首次使用时，浏览器会请求屏幕共享权限，请选择"整个屏幕"并允许</strong></li>
+                    <li><strong>只需授权一次，后续截屏将自动进行，无需重复选择</strong></li>
+                    <li>点击"最小化到托盘"将程序最小化到系统托盘，程序将继续在后台运行</li>
+                    <li>程序将在设定的时间间隔内自动截取整个屏幕</li>
+                    <li><strong>所有敏感操作（停止截屏、删除截屏、修改密码、停止屏幕共享）都需要密码验证</strong></li>
+                </ul>
+                
+                <div class="feature-list">
+                    <div class="feature">
+                        <h4>会话密码</h4>
+                        <p>每次启动或刷新后密码自动清空，提高安全性</p>
+                    </div>
+                    <div class="feature">
+                        <h4>智能界面</h4>
+                        <p>首次使用显示"设置密码"，之后只显示"修改密码"，避免用户混淆</p>
+                    </div>
+                    <div class="feature">
+                        <h4>后台运行</h4>
+                        <p>最小化后程序继续在后台运行，自动截屏不受影响</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="gallery">
+            <h2 class="gallery-title">截屏历史</h2>
+            <div class="screenshots" id="screenshots">
+                <div class="empty-gallery">
+                    <p>暂无截屏，点击上方按钮开始截屏</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 密码验证模态框 -->
+    <div class="modal" id="passwordModal">
+        <div class="modal-content">
+            <h3 id="modalTitle">验证安全密码</h3>
+            <div class="time-input">
+                <label for="verifyPassword" id="modalDescription">请输入安全密码</label>
+                <input type="password" id="verifyPassword" placeholder="输入密码确认操作">
+            </div>
+            <div class="modal-buttons">
+                <button id="confirmActionBtn">确认</button>
+                <button id="cancelActionBtn">取消</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 修改密码模态框 -->
+    <div class="modal" id="changePasswordModal">
+        <div class="modal-content">
+            <h3>修改安全密码</h3>
+            <div class="time-input">
+                <label for="newPassword">请输入新密码</label>
+                <input type="password" id="newPassword" placeholder="输入新密码">
+            </div>
+            <div class="time-input">
+                <label for="confirmNewPassword">请确认新密码</label>
+                <input type="password" id="confirmNewPassword" placeholder="再次输入新密码">
+            </div>
+            <div class="modal-buttons">
+                <button id="confirmChangePasswordBtn">确认修改</button>
+                <button id="cancelChangePasswordBtn">取消</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 最小化指示器 -->
+    <div class="minimized-indicator inactive" id="minimizedIndicator" style="display: none;">
+        <div class="icon">??</div>
+    </div>
+    
+    <div class="notification" id="notification">
+        截屏已保存！
+    </div>
+
+    <script>
+        // 获取DOM元素
+        const minTimeInput = document.getElementById('minTime');
+        const maxTimeInput = document.getElementById('maxTime');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const captureBtn = document.getElementById('captureBtn');
+        const minimizeBtn = document.getElementById('minimizeBtn');
+        const stopStreamBtn = document.getElementById('stopStreamBtn');
+        const statusDiv = document.getElementById('status');
+        const streamStatusDiv = document.getElementById('streamStatus');
+        const screenshotsDiv = document.getElementById('screenshots');
+        const notification = document.getElementById('notification');
+        const passwordInput = document.getElementById('passwordInput');
+        const passwordLabel = document.getElementById('passwordLabel');
+        const passwordControls = document.getElementById('passwordControls');
+        const passwordStatus = document.getElementById('passwordStatus');
+        const passwordModal = document.getElementById('passwordModal');
+        const changePasswordModal = document.getElementById('changePasswordModal');
+        const verifyPassword = document.getElementById('verifyPassword');
+        const newPassword = document.getElementById('newPassword');
+        const confirmNewPassword = document.getElementById('confirmNewPassword');
+        const confirmActionBtn = document.getElementById('confirmActionBtn');
+        const cancelActionBtn = document.getElementById('cancelActionBtn');
+        const confirmChangePasswordBtn = document.getElementById('confirmChangePasswordBtn');
+        const cancelChangePasswordBtn = document.getElementById('cancelChangePasswordBtn');
+        const minimizedIndicator = document.getElementById('minimizedIndicator');
+        const backgroundModeCheckbox = document.getElementById('backgroundMode');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalDescription = document.getElementById('modalDescription');
+        
+        let screenStream = null;
+        let captureInterval = null;
+        let isCapturing = false;
+        let screenshots = [];
+        let isStreamActive = false;
+        let securityPassword = null; // 不再使用localStorage保存密码
+        let screenshotToDelete = null;
+        let isMinimized = false;
+        let backgroundModeEnabled = true;
+        let currentAction = null; // 'delete', 'stop', 'changePassword', 'stopStream'
+        
+        // 更新密码界面状态
+        function updatePasswordUI() {
+            if (securityPassword) {
+                // 已设置密码，显示修改密码按钮
+                passwordLabel.textContent = '修改安全密码';
+                passwordInput.placeholder = '输入新密码';
+                passwordControls.innerHTML = `
+                    <button id="changePasswordBtn">修改密码</button>
+                `;
+                
+                // 重新绑定事件
+                document.getElementById('changePasswordBtn').addEventListener('click', requestChangePassword);
+            } else {
+                // 未设置密码，显示设置密码按钮
+                passwordLabel.textContent = '设置安全密码';
+                passwordInput.placeholder = '输入安全密码';
+                passwordControls.innerHTML = `
+                    <button id="setPasswordBtn">设置密码</button>
+                `;
+                
+                // 重新绑定事件
+                document.getElementById('setPasswordBtn').addEventListener('click', setPassword);
+            }
+            
+            updatePasswordStatus();
+        }
+        
+        // 初始化密码状态显示
+        function updatePasswordStatus() {
+            if (securityPassword) {
+                passwordStatus.textContent = '已设置安全密码';
+                passwordStatus.style.color = '#4dabf7';
+            } else {
+                passwordStatus.textContent = '未设置安全密码';
+                passwordStatus.style.color = '#ff7e5f';
+            }
+        }
+        
+        // 更新状态显示
+        function updateStatus() {
+            if (isCapturing) {
+                if (isStreamActive) {
+                    statusDiv.textContent = `状态：运行中 - 下次截屏将在 ${getNextCaptureTime()} 分钟后进行`;
+                    if (isMinimized) {
+                        minimizedIndicator.className = 'minimized-indicator active';
+                    }
+                } else {
+                    statusDiv.textContent = '状态：等待屏幕共享授权...';
+                }
+                statusDiv.className = 'status active';
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+            } else {
+                statusDiv.textContent = '状态：未启动';
+                statusDiv.className = 'status inactive';
+                if (isMinimized) {
+                    minimizedIndicator.className = 'minimized-indicator inactive';
+                }
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+            }
+            
+            // 更新屏幕共享状态
+            if (isStreamActive) {
+                streamStatusDiv.textContent = '已激活';
+                streamStatusDiv.style.color = '#4dabf7';
+                stopStreamBtn.disabled = false;
+            } else {
+                streamStatusDiv.textContent = '未激活';
+                streamStatusDiv.style.color = '#ff7e5f';
+                stopStreamBtn.disabled = true;
+            }
+        }
+        
+        // 计算下次截屏时间
+        function getNextCaptureTime() {
+            const min = parseInt(minTimeInput.value);
+            const max = parseInt(maxTimeInput.value);
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+        
+        // 显示通知
+        function showNotification(message, isError = false) {
+            notification.textContent = message;
+            notification.className = 'notification';
+            
+            if (isError) {
+                notification.classList.add('error');
+            }
+            
+            notification.classList.add('show');
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+        
+        // 初始化屏幕流 - 只需一次授权
+        async function initializeScreenStream() {
+            try {
+                // 请求屏幕共享权限，指定捕获整个屏幕
+                screenStream = await navigator.mediaDevices.getDisplayMedia({ 
+                    video: {
+                        cursor: 'always',
+                        displaySurface: 'monitor'  // 指定捕获整个显示器
+                    },
+                    audio: false
+                });
+                
+                // 检查是否选择了整个屏幕
+                const videoTrack = screenStream.getVideoTracks()[0];
+                const settings = videoTrack.getSettings();
+                
+                // 如果用户没有选择整个屏幕，显示提示
+                if (settings.displaySurface !== 'monitor') {
+                    showNotification('请选择"整个屏幕"以获得最佳效果', true);
+                }
+                
+                isStreamActive = true;
+                updateStatus();
+                showNotification('屏幕共享已授权，开始自动截屏！');
+                
+                // 监听流结束事件
+                videoTrack.addEventListener('ended', () => {
+                    isStreamActive = false;
+                    updateStatus();
+                    if (isCapturing) {
+                        showNotification('屏幕共享已结束，需要重新授权', true);
+                        stopAutoCapture();
+                    }
+                });
+                
+                return true;
+            } catch (error) {
+                console.error('屏幕共享授权失败:', error);
+                if (error.name === 'NotAllowedError') {
+                    showNotification('截屏失败: 用户拒绝了屏幕共享权限', true);
+                } else {
+                    showNotification('截屏失败: ' + error.message, true);
+                }
+                return false;
+            }
+        }
+        
+        // 捕获屏幕 - 使用已授权的流
+        async function captureScreen() {
+            if (!isStreamActive || !screenStream) {
+                showNotification('屏幕流不可用，正在重新初始化...');
+                const success = await initializeScreenStream();
+                if (!success) {
+                    return;
+                }
+            }
+            
+            try {
+                // 创建视频元素来显示屏幕流
+                const video = document.createElement('video');
+                video.srcObject = screenStream;
+                
+                // 等待视频加载完成
+                await new Promise((resolve, reject) => {
+                    video.onloadedmetadata = () => {
+                        video.play();
+                        resolve();
+                    };
+                    video.onerror = reject;
+                });
+                
+                // 创建canvas来绘制视频帧
+                const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                
+                // 将canvas转换为数据URL
+                const dataURL = canvas.toDataURL('image/png');
+                
+                // 保存截图
+                saveScreenshot(dataURL);
+                
+            } catch (error) {
+                console.error('截屏失败:', error);
+                showNotification('截屏失败: ' + error.message, true);
+            }
+        }
+        
+        // 保存截图
+        function saveScreenshot(dataURL) {
+            const timestamp = new Date().toLocaleString();
+            const screenshot = {
+                id: Date.now(),
+                dataURL: dataURL,
+                timestamp: timestamp
+            };
+            
+            screenshots.unshift(screenshot);
+            updateGallery();
+            showNotification('截屏已保存！');
+            
+            // 保存到本地存储
+            saveScreenshotsToStorage();
+        }
+        
+        // 更新截图画廊
+        function updateGallery() {
+            if (screenshots.length === 0) {
+                screenshotsDiv.innerHTML = '<div class="empty-gallery"><p>暂无截屏，点击上方按钮开始截屏</p></div>';
+                return;
+            }
+            
+            screenshotsDiv.innerHTML = '';
+            
+            screenshots.forEach(screenshot => {
+                const screenshotElement = document.createElement('div');
+                screenshotElement.className = 'screenshot';
+                
+                screenshotElement.innerHTML = `
+                    <img src="${screenshot.dataURL}" alt="截图">
+                    <div class="screenshot-info">
+                        <p>${screenshot.timestamp}</p>
+                        <div class="screenshot-actions">
+                            <button class="download-btn" data-id="${screenshot.id}">下载</button>
+                            <button class="delete-btn" data-id="${screenshot.id}">删除</button>
+                        </div>
+                    </div>
+                `;
+                
+                screenshotsDiv.appendChild(screenshotElement);
+            });
+            
+            // 添加下载按钮事件
+            document.querySelectorAll('.download-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const id = this.getAttribute('data-id');
+                    const screenshot = screenshots.find(s => s.id == id);
+                    if (screenshot) {
+                        downloadScreenshot(screenshot);
+                    }
+                });
+            });
+            
+            // 添加删除按钮事件
+            document.querySelectorAll('.delete-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const id = this.getAttribute('data-id');
+                    requestDeleteScreenshot(id);
+                });
+            });
+        }
+        
+        // 请求删除截图（需要密码验证）
+        function requestDeleteScreenshot(id) {
+            if (!securityPassword) {
+                showNotification('请先设置安全密码', true);
+                return;
+            }
+            
+            currentAction = 'delete';
+            screenshotToDelete = id;
+            // 设置模态框标题和描述
+            modalTitle.textContent = '验证删除操作';
+            modalDescription.textContent = '请输入安全密码确认删除截图';
+            verifyPassword.value = '';
+            passwordModal.style.display = 'flex';
+        }
+        
+        // 请求停止截屏（需要密码验证）
+        function requestStopCapture() {
+            if (!securityPassword) {
+                // 如果没有设置密码，直接停止
+                stopAutoCapture();
+                return;
+            }
+            
+            currentAction = 'stop';
+            // 设置模态框标题和描述
+            modalTitle.textContent = '验证停止操作';
+            modalDescription.textContent = '请输入安全密码确认停止自动截屏';
+            verifyPassword.value = '';
+            passwordModal.style.display = 'flex';
+        }
+        
+        // 请求修改密码（需要密码验证）
+        function requestChangePassword() {
+            if (!securityPassword) {
+                // 如果没有设置密码，直接打开修改密码模态框
+                changePasswordModal.style.display = 'flex';
+                return;
+            }
+            
+            currentAction = 'changePassword';
+            // 设置模态框标题和描述
+            modalTitle.textContent = '验证修改密码操作';
+            modalDescription.textContent = '请输入当前安全密码确认修改密码';
+            verifyPassword.value = '';
+            passwordModal.style.display = 'flex';
+        }
+        
+        // 请求停止屏幕共享（需要密码验证）
+        function requestStopStream() {
+            if (!securityPassword) {
+                // 如果没有设置密码，直接停止
+                stopScreenStream();
+                return;
+            }
+            
+            currentAction = 'stopStream';
+            // 设置模态框标题和描述
+            modalTitle.textContent = '验证停止共享操作';
+            modalDescription.textContent = '请输入安全密码确认停止屏幕共享';
+            verifyPassword.value = '';
+            passwordModal.style.display = 'flex';
+        }
+        
+        // 验证密码并执行操作
+        function verifyAndExecuteAction() {
+            const enteredPassword = verifyPassword.value;
+            
+            if (!enteredPassword) {
+                showNotification('请输入密码', true);
+                return;
+            }
+            
+            if (enteredPassword === securityPassword) {
+                if (currentAction === 'delete') {
+                    deleteScreenshot(screenshotToDelete);
+                    showNotification('截屏已删除');
+                } else if (currentAction === 'stop') {
+                    stopAutoCapture();
+                    showNotification('自动截屏已停止');
+                } else if (currentAction === 'changePassword') {
+                    passwordModal.style.display = 'none';
+                    changePasswordModal.style.display = 'flex';
+                } else if (currentAction === 'stopStream') {
+                    stopScreenStream();
+                    showNotification('屏幕共享已停止');
+                }
+                
+                if (currentAction !== 'changePassword') {
+                    passwordModal.style.display = 'none';
+                    screenshotToDelete = null;
+                    currentAction = null;
+                }
+            } else {
+                showNotification('密码错误，操作被拒绝', true);
+            }
+        }
+        
+        // 下载截图
+        function downloadScreenshot(screenshot) {
+            const link = document.createElement('a');
+            link.download = `screenshot-${screenshot.id}.png`;
+            link.href = screenshot.dataURL;
+            link.click();
+        }
+        
+        // 删除截图
+        function deleteScreenshot(id) {
+            screenshots = screenshots.filter(s => s.id != id);
+            updateGallery();
+            saveScreenshotsToStorage();
+        }
+        
+        // 停止屏幕共享
+        function stopScreenStream() {
+            if (screenStream) {
+                screenStream.getTracks().forEach(track => track.stop());
+                screenStream = null;
+                isStreamActive = false;
+                updateStatus();
+            }
+        }
+        
+        // 保存截屏到本地存储
+        function saveScreenshotsToStorage() {
+            localStorage.setItem('screenshots', JSON.stringify(screenshots));
+        }
+        
+        // 从本地存储加载截屏
+        function loadScreenshotsFromStorage() {
+            const storedScreenshots = localStorage.getItem('screenshots');
+            if (storedScreenshots) {
+                screenshots = JSON.parse(storedScreenshots);
+                updateGallery();
+            }
+        }
+        
+        // 设置密码
+        function setPassword() {
+            const newPasswordValue = passwordInput.value;
+            
+            if (!newPasswordValue) {
+                showNotification('请输入密码', true);
+                return;
+            }
+            
+            securityPassword = newPasswordValue;
+            passwordInput.value = '';
+            updatePasswordUI();
+            showNotification('安全密码已设置');
+        }
+        
+        // 修改密码
+        function changePassword() {
+            const newPasswordValue = newPassword.value;
+            const confirmNewPasswordValue = confirmNewPassword.value;
+            
+            if (!newPasswordValue) {
+                showNotification('请输入新密码', true);
+                return;
+            }
+            
+            if (newPasswordValue !== confirmNewPasswordValue) {
+                showNotification('两次输入的密码不一致', true);
+                return;
+            }
+            
+            securityPassword = newPasswordValue;
+            newPassword.value = '';
+            confirmNewPassword.value = '';
+            changePasswordModal.style.display = 'none';
+            updatePasswordUI();
+            showNotification('安全密码已修改');
+        }
+        
+        // 最小化到托盘
+        function minimizeToTray() {
+            isMinimized = true;
+            document.querySelector('.container').style.display = 'none';
+            minimizedIndicator.style.display = 'flex';
+            showNotification('程序已最小化到托盘，继续在后台运行');
+        }
+        
+        // 从托盘恢复
+        function restoreFromTray() {
+            isMinimized = false;
+            document.querySelector('.container').style.display = 'block';
+            minimizedIndicator.style.display = 'none';
+        }
+        
+        // 开始自动截屏
+        async function startAutoCapture() {
+            if (isCapturing) return;
+            
+            isCapturing = true;
+            updateStatus();
+            
+            // 初始化屏幕流（首次授权）
+            const streamInitialized = await initializeScreenStream();
+            if (!streamInitialized) {
+                isCapturing = false;
+                updateStatus();
+                return;
+            }
+            
+            // 立即执行第一次截屏
+            captureScreen();
+            
+            // 设置定时器
+            function scheduleNextCapture() {
+                if (!isCapturing) return;
+                
+                const nextTime = getNextCaptureTime();
+                const nextTimeMs = nextTime * 60 * 1000; // 转换为毫秒
+                
+                captureInterval = setTimeout(() => {
+                    captureScreen();
+                    scheduleNextCapture();
+                }, nextTimeMs);
+                
+                updateStatus();
+            }
+            
+            scheduleNextCapture();
+        }
+        
+        // 停止自动截屏
+        function stopAutoCapture() {
+            isCapturing = false;
+            
+            if (captureInterval) {
+                clearTimeout(captureInterval);
+                captureInterval = null;
+            }
+            
+            updateStatus();
+        }
+        
+        // 页面可见性变化处理
+        function handleVisibilityChange() {
+            if (document.hidden && backgroundModeEnabled) {
+                // 页面隐藏但后台模式启用，继续运行
+                console.log('页面隐藏，但后台模式已启用，继续运行');
+            } else if (document.hidden && !backgroundModeEnabled) {
+                // 页面隐藏且后台模式禁用，暂停截屏
+                if (isCapturing) {
+                    stopAutoCapture();
+                    showNotification('页面已隐藏，自动截屏已暂停。启用后台模式以继续运行。');
+                }
+            }
+        }
+        
+        // 事件监听
+        startBtn.addEventListener('click', startAutoCapture);
+        stopBtn.addEventListener('click', requestStopCapture);
+        captureBtn.addEventListener('click', captureScreen);
+        minimizeBtn.addEventListener('click', minimizeToTray);
+        stopStreamBtn.addEventListener('click', requestStopStream);
+        confirmActionBtn.addEventListener('click', verifyAndExecuteAction);
+        cancelActionBtn.addEventListener('click', function() {
+            passwordModal.style.display = 'none';
+            screenshotToDelete = null;
+            currentAction = null;
+        });
+        confirmChangePasswordBtn.addEventListener('click', changePassword);
+        cancelChangePasswordBtn.addEventListener('click', function() {
+            changePasswordModal.style.display = 'none';
+            newPassword.value = '';
+            confirmNewPassword.value = '';
+        });
+        minimizedIndicator.addEventListener('click', restoreFromTray);
+        backgroundModeCheckbox.addEventListener('change', function() {
+            backgroundModeEnabled = this.checked;
+            localStorage.setItem('backgroundModeEnabled', this.checked);
+            showNotification(`后台模式已${this.checked ? '启用' : '禁用'}`);
+        });
+        
+        // 监听页面可见性变化
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        
+        // 验证输入
+        minTimeInput.addEventListener('change', function() {
+            const min = parseInt(this.value);
+            const max = parseInt(maxTimeInput.value);
+            
+            if (min > max) {
+                maxTimeInput.value = min;
+            }
+            
+            if (min < 1) {
+                this.value = 1;
+            }
+            
+            localStorage.setItem('minTime', this.value);
+        });
+        
+        maxTimeInput.addEventListener('change', function() {
+            const min = parseInt(minTimeInput.value);
+            const max = parseInt(this.value);
+            
+            if (max < min) {
+                minTimeInput.value = max;
+            }
+            
+            localStorage.setItem('maxTime', this.value);
+        });
+        
+        // 初始化
+        function initializeApp() {
+            // 从本地存储加载设置
+            const savedMinTime = localStorage.getItem('minTime');
+            const savedMaxTime = localStorage.getItem('maxTime');
+            const savedBackgroundMode = localStorage.getItem('backgroundModeEnabled');
+            
+            if (savedMinTime) minTimeInput.value = savedMinTime;
+            if (savedMaxTime) maxTimeInput.value = savedMaxTime;
+            if (savedBackgroundMode !== null) {
+                backgroundModeEnabled = savedBackgroundMode === 'true';
+                backgroundModeCheckbox.checked = backgroundModeEnabled;
+            }
+            
+            // 初始化密码界面 - 每次启动时密码为空
+            securityPassword = null;
+            updatePasswordUI();
+            
+            updateStatus();
+            loadScreenshotsFromStorage();
+            
+            // 显示会话密码提示
+            showNotification('每次启动或刷新后需要重新设置密码', false);
+        }
+        
+        // 启动初始化
+        initializeApp();
+    </script>
+</body>
+</html>
