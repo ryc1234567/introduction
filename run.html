@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<title>方块跑酷 · 终点修复版</title>
+<title>方块跑酷 · 终点判定线版（稳定）</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
 body{
@@ -43,8 +43,8 @@ const player={
 };
 
 let level=1,camera=0;
-let platforms=[],moving=[],invisible=[],fake=[],gravity=[],spikes=[],blink=[];
-let finishPlatform=null;
+let platforms=[],moving=[],invisible=[],fake=[],spikes=[],blink=[];
+let finishLineX=0;
 let finished=false;
 
 /* ===== 碰撞 ===== */
@@ -64,15 +64,14 @@ function resolve(a,b){
         }
     }
 }
+
 function hit(a,b){
     return a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;
 }
 
 /* ===== 生成关卡 ===== */
 function gen(){
-    platforms=[];moving=[];invisible=[];fake=[];
-    gravity=[];spikes=[];blink=[];
-    finishPlatform=null;
+    platforms=[];moving=[];invisible=[];fake=[];spikes=[];blink=[];
     finished=false;
     camera=0;
 
@@ -88,15 +87,18 @@ function gen(){
         x+=180+Math.random()*60;
     }
 
-    // ⭐ 终点平台（向前一些 + 标记）
-    finishPlatform={
-        x:(last?last.x:200)+200,
+    // ⭐ 终点平台（只做视觉）
+    const finishPlatformX=(last?last.x:200)+200;
+    platforms.push({
+        x:finishPlatformX,
         y:350,
         w:220,
         h:50,
         finish:true
-    };
-    platforms.push(finishPlatform);
+    });
+
+    // ⭐ 终点判定线（真正通关）
+    finishLineX = finishPlatformX + 40;
 
     if(chap>=2){
         moving.push({x:600,y:200,sx:600,d:120,t:0,sp:0.02,w:80,h:20});
@@ -158,8 +160,8 @@ function update(){
         if(hit(player,s))reset();
     });
 
-    // ⭐ 终点判定（唯一通关条件）
-    if(!finished && finishPlatform && hit(player, finishPlatform)){
+    // ⭐⭐⭐ 终点判定线（最终、稳定）
+    if(!finished && player.x + player.w >= finishLineX){
         finished=true;
         level++;
         reset();
@@ -196,6 +198,13 @@ function draw(){
         ctx.fillStyle="#c0392b";
         ctx.fillRect(s.x-camera,s.y,s.w,s.h);
     });
+
+    // （调试用）终点判定线
+    // ctx.strokeStyle="red";
+    // ctx.beginPath();
+    // ctx.moveTo(finishLineX-camera,0);
+    // ctx.lineTo(finishLineX-camera,400);
+    // ctx.stroke();
 
     ctx.fillStyle="#e74c3c";
     ctx.fillRect(player.x-camera,player.y,player.w,player.h);
