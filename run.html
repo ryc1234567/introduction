@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<title>方块跑酷 · 完整机制版（登录修复）</title>
+<title>方块跑酷 · 纯净单机版</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
 body{
@@ -10,16 +10,12 @@ body{
     display:flex;justify-content:center;align-items:center;
     height:100vh;font-family:Arial;
 }
-#game{width:800px;height:400px;position:relative;border:2px solid #ecf0f1}
+#game{
+    width:800px;height:400px;
+    position:relative;border:2px solid #ecf0f1
+}
 canvas{background:#1a1a2e}
 #ui{position:absolute;top:5px;left:10px;color:white}
-#login{
-    position:absolute;inset:0;background:rgba(0,0,0,.8);
-    display:flex;flex-direction:column;justify-content:center;align-items:center;
-    color:white;z-index:10
-}
-input{margin:5px;padding:5px}
-button{padding:5px 10px}
 </style>
 </head>
 
@@ -27,67 +23,26 @@ button{padding:5px 10px}
 <div id="game">
 <canvas id="c" width="800" height="400"></canvas>
 <div id="ui"></div>
-
-<div id="login">
-    <h3>登录 / 注册</h3>
-    <input id="user" placeholder="账号">
-    <input id="pass" placeholder="密码" type="password">
-    <button onclick="login()">进入游戏</button>
-</div>
 </div>
 
 <script>
 const c=document.getElementById("c");
 const ctx=c.getContext("2d");
 const ui=document.getElementById("ui");
-const loginBox=document.getElementById("login");
-const userInput=document.getElementById("user");
-const passInput=document.getElementById("pass");
 const keys={};
 
 document.onkeydown=e=>keys[e.key]=true;
 document.onkeyup=e=>keys[e.key]=false;
 
-/* ===== 账号系统 ===== */
-let account=null;
-let level=1;
-
-function login(){
-    const u=userInput.value.trim();
-    const p=passInput.value.trim();
-    if(!u||!p){
-        alert("请输入账号和密码");
-        return;
-    }
-
-    const key="acc_"+u;
-    let data=JSON.parse(localStorage.getItem(key)||"{}");
-
-    if(data.pass && data.pass!==p){
-        alert("密码错误");
-        return;
-    }
-
-    if(!data.pass){
-        data={pass:p,level:1};
-    }
-
-    account={key,data};
-    level=data.level;
-    localStorage.setItem(key,JSON.stringify(data));
-
-    loginBox.style.display="none";
-    reset();
-}
-
 /* ===== 玩家 ===== */
 const player={
     x:100,y:300,w:30,h:30,
     vx:0,vy:0,
-    speed:5,jump:-15,onGround:false
+    speed:5,jump:-15,
+    onGround:false
 };
 
-let camera=0,length=1200;
+let level=1,camera=0,length=1200;
 let platforms=[],moving=[],invisible=[],fake=[],gravity=[],spikes=[],blink=[];
 
 /* ===== 碰撞 ===== */
@@ -112,7 +67,7 @@ function hit(a,b){
     return a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;
 }
 
-/* ===== 生成关卡 ===== */
+/* ===== 生成关卡（含终点可达保证） ===== */
 function gen(){
     platforms=[];moving=[];invisible=[];fake=[];
     gravity=[];spikes=[];blink=[];
@@ -131,7 +86,9 @@ function gen(){
         x+=180+Math.random()*60;
     }
 
-    platforms.push({x:(last?last.x:200)+150,y:350,w:200,h:50});
+    // 终点平台（保证 ≤ 2/3 跳跃距离）
+    const endX=(last?last.x:200)+150;
+    platforms.push({x:endX,y:350,w:200,h:50});
 
     if(chap>=2){
         moving.push({x:600,y:200,sx:600,d:120,t:0,sp:0.02,w:80,h:20});
@@ -150,13 +107,14 @@ function gen(){
     ui.innerText=`关卡 ${level}${boss?" · BOSS":""}`;
 }
 
+/* ===== 重置 ===== */
 function reset(){
     player.x=100;player.y=300;
     player.vx=0;player.vy=0;
     gen();
 }
 
-/* ===== 主循环 ===== */
+/* ===== 更新 ===== */
 function update(){
     let g=0.8;
     player.vx=0;
@@ -193,22 +151,26 @@ function update(){
     });
 
     if(player.y>c.height)reset();
-
-    if(player.x>length){
-        level++;
-        account.data.level=level;
-        localStorage.setItem(account.key,JSON.stringify(account.data));
-        reset();
-    }
-
+    if(player.x>length){level++;reset();}
     if(player.x>c.width/2)camera=player.x-c.width/2;
 }
 
+/* ===== 渲染 ===== */
 function draw(){
     ctx.clearRect(0,0,800,400);
-    platforms.forEach(p=>{ctx.fillStyle="#2ecc71";ctx.fillRect(p.x-camera,p.y,p.w,p.h)});
-    moving.forEach(p=>{ctx.fillStyle="#e67e22";ctx.fillRect(p.x-camera,p.y,p.w,p.h)});
-    fake.forEach(p=>{ctx.strokeStyle="#aaa";ctx.strokeRect(p.x-camera,p.y,p.w,p.h)});
+
+    platforms.forEach(p=>{
+        ctx.fillStyle="#2ecc71";
+        ctx.fillRect(p.x-camera,p.y,p.w,p.h);
+    });
+    moving.forEach(p=>{
+        ctx.fillStyle="#e67e22";
+        ctx.fillRect(p.x-camera,p.y,p.w,p.h);
+    });
+    fake.forEach(p=>{
+        ctx.strokeStyle="#aaa";
+        ctx.strokeRect(p.x-camera,p.y,p.w,p.h);
+    });
     blink.forEach(b=>{
         if(b.t<60){
             ctx.fillStyle="#3498db";
@@ -219,6 +181,7 @@ function draw(){
         ctx.fillStyle="#c0392b";
         ctx.fillRect(s.x-camera,s.y,s.w,s.h);
     });
+
     ctx.fillStyle="#e74c3c";
     ctx.fillRect(player.x-camera,player.y,player.w,player.h);
 }
@@ -228,6 +191,8 @@ function loop(){
     draw();
     requestAnimationFrame(loop);
 }
+
+reset();
 loop();
 </script>
 </body>
