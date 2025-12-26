@@ -24,10 +24,19 @@ body{margin:0;background:#222;display:flex;justify-content:center;align-items:ce
 .level-btn{
   padding:15px 5px;background:#2c3e50;border:2px solid #3498db;color:#fff;
   border-radius:8px;cursor:pointer;transition:all 0.2s;font-size:16px;
+  position:relative;
 }
 .level-btn:hover{background:#3498db;transform:scale(1.05)}
 .level-btn.boss{background:#c0392b;border-color:#e74c3c}
 .level-btn.boss:hover{background:#e74c3c}
+.level-death-count{
+  position:absolute;
+  bottom:2px;
+  right:5px;
+  font-size:10px;
+  color:#e74c3c;
+  font-weight:bold;
+}
 .editor-tools{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
 .editor-btn{
   padding:10px 15px;background:#34495e;border:1px solid #7f8c8d;color:#fff;
@@ -41,6 +50,14 @@ body{margin:0;background:#222;display:flex;justify-content:center;align-items:ce
 #game{width:800px;height:400px;position:relative;border:2px solid #fff;background:#111;margin:0 auto}
 canvas{display:block}
 #ui{position:absolute;top:5px;left:10px;color:#fff;font-size:16px}
+#death-count{
+  position:absolute;
+  top:30px;
+  left:10px;
+  color:#e74c3c;
+  font-size:16px;
+  font-weight:bold;
+}
 #controls{position:absolute;bottom:10px;width:100%;display:flex;justify-content:space-between;padding:0 20px;box-sizing:border-box}
 .ctrl{display:flex;gap:10px}
 .btn{
@@ -64,6 +81,9 @@ canvas{display:block}
       <button class="menu-btn" id="start-game-btn">开始游戏</button>
       <button class="menu-btn" id="select-level-btn">选择关卡</button>
       <button class="menu-btn" id="editor-btn">自己创作</button>
+      <div style="color:#95a5a6;text-align:center;margin-top:20px;font-size:14px;">
+        总死亡次数: <span id="total-deaths">0</span>
+      </div>
     </div>
   </div>
 </div>
@@ -73,6 +93,7 @@ canvas{display:block}
   <div id="game">
     <canvas id="c" width="800" height="400"></canvas>
     <div id="ui"></div>
+    <div id="death-count"></div>
     <div id="controls">
       <div class="ctrl">
         <div class="btn" id="left">◀</div>
@@ -90,6 +111,9 @@ canvas{display:block}
 <div id="level-select-screen" class="screen">
   <div class="container">
     <h1 class="game-title" style="font-size:36px;margin-top:20px">选择关卡</h1>
+    <div style="color:#95a5a6;margin-bottom:20px;text-align:center;">
+      总死亡次数: <span id="total-deaths-level">0</span>
+    </div>
     <div class="level-grid" id="level-grid"></div>
     <button class="back-btn" id="back-to-menu-btn2">返回菜单</button>
   </div>
@@ -128,6 +152,12 @@ canvas{display:block}
 </div>
 
 <script>
+/* ================= 全局变量 ================= */
+let currentLevel = 1;
+let deathCount = 0;
+let totalDeaths = 0;
+let levelDeaths = {};
+
 /* ================= 界面切换 ================= */
 const menuScreen = document.getElementById('menu-screen');
 const gameScreen = document.getElementById('game-screen');
@@ -139,6 +169,13 @@ menuScreen.style.display = 'block';
 gameScreen.style.display = 'none';
 levelSelectScreen.style.display = 'none';
 editorScreen.style.display = 'none';
+
+// 更新死亡次数显示
+function updateDeathDisplays() {
+  document.getElementById('total-deaths').textContent = totalDeaths;
+  document.getElementById('total-deaths-level').textContent = totalDeaths;
+  document.getElementById('death-count').textContent = `死亡: ${deathCount}`;
+}
 
 // 按钮事件
 document.getElementById('start-game-btn').addEventListener('click', () => {
@@ -169,6 +206,7 @@ function backToMenu() {
   levelSelectScreen.style.display = 'none';
   editorScreen.style.display = 'none';
   menuScreen.style.display = 'block';
+  updateDeathDisplays();
 }
 
 /* ================= 关卡选择 ================= */
@@ -180,6 +218,13 @@ function generateLevelButtons() {
     const btn = document.createElement('button');
     btn.className = 'level-btn';
     btn.textContent = i;
+    
+    // 添加死亡次数显示
+    const deathSpan = document.createElement('span');
+    deathSpan.className = 'level-death-count';
+    deathSpan.textContent = levelDeaths[i] || 0;
+    btn.appendChild(deathSpan);
+    
     if (i % 3 === 0) {
       btn.classList.add('boss');
       btn.textContent = `B${i}`;
@@ -194,7 +239,6 @@ function generateLevelButtons() {
 }
 
 /* ================= 游戏代码 ================= */
-let currentLevel = 1;
 
 /* ================= 输入 ================= */
 const key={left:false,right:false,jump:false,down:false};
@@ -293,6 +337,7 @@ let P=[],M=[],S=[],finish=0;
 function loadLevel(levelNum){
   level = levelNum;
   currentLevel = levelNum;
+  deathCount = levelDeaths[levelNum] || 0;
   const L=LEVELS[level-1];
   P=JSON.parse(JSON.stringify(L.p));
   M=JSON.parse(JSON.stringify(L.m));
@@ -303,6 +348,7 @@ function loadLevel(levelNum){
   player.dash=100;
   camera=0;
   ui.innerText=`第 ${level} 关${level%3===0?" · BOSS":""}`;
+  updateDeathDisplays();
 }
 
 /* ================= 碰撞检测 ================= */
@@ -456,10 +502,12 @@ function update(){
     if(s.vertical){
       if(player.x < s.x+s.w && player.x+player.w > s.x && 
          player.y < s.y+s.h && player.y+player.h > s.y){
+        increaseDeathCount();
         loadLevel(currentLevel);
       }
     } else {
       if(player.x<s.x+s.w&&player.x+player.w>s.x&&player.y<s.y+s.h&&player.y+player.h>s.y){
+        increaseDeathCount();
         loadLevel(currentLevel);
       }
     }
@@ -471,11 +519,21 @@ function update(){
     loadLevel(currentLevel);
   }
   
-  if(player.y>420) loadLevel(currentLevel);
+  if(player.y>420) {
+    increaseDeathCount();
+    loadLevel(currentLevel);
+  }
   if(player.x < -50) player.x = -50;
   
   if(player.x>400) camera=player.x-400;
   if(player.x<200 && camera>0) camera=Math.max(0, player.x-200);
+}
+
+function increaseDeathCount() {
+  deathCount++;
+  totalDeaths++;
+  levelDeaths[currentLevel] = (levelDeaths[currentLevel] || 0) + 1;
+  updateDeathDisplays();
 }
 
 function draw(){
@@ -889,6 +947,7 @@ function testLevel() {
   
   camera = 0;
   ui.innerText = "测试自定义关卡";
+  document.getElementById('death-count').textContent = "死亡: 0";
 }
 
 function generateCode() {
