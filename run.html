@@ -2,232 +2,988 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<title>方块跑酷 · 自动防无解版</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>方块跑酷 · 完整版</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
 <style>
-body{
-    margin:0;background:#2c3e50;
-    display:flex;justify-content:center;align-items:center;
-    height:100vh;font-family:Arial;
-    touch-action:none;
+body{margin:0;background:#222;display:flex;justify-content:center;align-items:center;height:100vh;font-family:Arial,sans-serif}
+#menu-screen,#game-screen,#level-select-screen,#editor-screen{display:none;width:100%;height:100%}
+#menu-screen{display:block}
+.screen{position:absolute;top:0;left:0;width:100%;height:100%;background:linear-gradient(to bottom,#111,#333);color:#fff}
+.container{max-width:800px;margin:0 auto;padding:20px}
+.game-title{text-align:center;font-size:48px;color:#e74c3c;margin:40px 0;text-shadow:0 0 10px rgba(231,76,60,0.5)}
+.game-subtitle{text-align:center;font-size:20px;color:#95a5a6;margin-bottom:60px}
+.menu-buttons{display:flex;flex-direction:column;gap:25px;max-width:300px;margin:0 auto}
+.menu-btn{
+  padding:20px 40px;background:rgba(52,73,94,0.7);border:none;color:#fff;
+  font-size:22px;border-radius:15px;cursor:pointer;transition:all 0.3s;
+  text-align:center;border:2px solid #3498db;
 }
-#game{
-    width:800px;height:400px;
-    position:relative;border:2px solid #ecf0f1
+.menu-btn:hover{background:rgba(41,128,185,0.8);transform:scale(1.05);box-shadow:0 0 20px rgba(52,152,219,0.5)}
+.back-btn{position:absolute;top:20px;left:20px;padding:10px 20px;background:#34495e;border:none;color:#fff;border-radius:8px;cursor:pointer}
+.level-grid{display:grid;grid-template-columns:repeat(10,1fr);gap:10px;margin-top:30px}
+.level-btn{
+  padding:15px 5px;background:#2c3e50;border:2px solid #3498db;color:#fff;
+  border-radius:8px;cursor:pointer;transition:all 0.2s;font-size:16px;
 }
-canvas{background:#1a1a2e}
-#ui{position:absolute;top:5px;left:10px;color:white}
-#controls{
-    position:absolute;bottom:10px;left:0;width:100%;
-    display:flex;justify-content:space-between;
-    padding:0 20px;box-sizing:border-box;
+.level-btn:hover{background:#3498db;transform:scale(1.05)}
+.level-btn.boss{background:#c0392b;border-color:#e74c3c}
+.level-btn.boss:hover{background:#e74c3c}
+.editor-tools{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+.editor-btn{
+  padding:10px 15px;background:#34495e;border:1px solid #7f8c8d;color:#fff;
+  border-radius:5px;cursor:pointer;transition:all 0.2s;
 }
-.ctrl-group{display:flex;gap:10px}
+.editor-btn.active{background:#3498db;border-color:#3498db}
+.editor-btn:hover{background:#2c3e50}
+#editor-canvas{border:2px solid #7f8c8d;background:#1a1a1a;cursor:crosshair}
+.editor-info{margin-top:15px;color:#bdc3c7;font-size:14px}
+#code-output{width:100%;height:150px;background:#2c3e50;color:#2ecc71;border:1px solid #7f8c8d;padding:10px;margin-top:10px;font-family:monospace}
+#game{width:800px;height:400px;position:relative;border:2px solid #fff;background:#111;margin:0 auto}
+canvas{display:block}
+#ui{position:absolute;top:5px;left:10px;color:#fff;font-size:16px}
+#controls{position:absolute;bottom:10px;width:100%;display:flex;justify-content:space-between;padding:0 20px;box-sizing:border-box}
+.ctrl{display:flex;gap:10px}
 .btn{
-    width:60px;height:60px;
-    background:rgba(255,255,255,0.15);
-    border:2px solid rgba(255,255,255,0.5);
-    border-radius:12px;
-    display:flex;align-items:center;justify-content:center;
-    color:white;font-size:26px;
-}
-.fake{
-    opacity:0.35;
+  width:60px;height:60px;border-radius:12px;
+  background:rgba(255,255,255,.15);
+  border:2px solid rgba(255,255,255,.5);
+  color:#fff;font-size:26px;
+  display:flex;align-items:center;justify-content:center;
+  user-select:none;
 }
 </style>
 </head>
-
 <body>
-<div id="game">
-<canvas id="c" width="800" height="400"></canvas>
-<div id="ui"></div>
 
-<div id="controls">
-    <div class="ctrl-group">
-        <div class="btn" data-key="ArrowLeft">◀</div>
-        <div class="btn" data-key="ArrowRight">▶</div>
+<!-- 主菜单界面 -->
+<div id="menu-screen" class="screen">
+  <div class="container">
+    <h1 class="game-title">方块跑酷</h1>
+    <p class="game-subtitle">爬墙 · 冲刺 · 地狱难度</p>
+    <div class="menu-buttons">
+      <button class="menu-btn" id="start-game-btn">开始游戏</button>
+      <button class="menu-btn" id="select-level-btn">选择关卡</button>
+      <button class="menu-btn" id="editor-btn">自己创作</button>
     </div>
-    <div class="ctrl-group">
-        <div class="btn" data-key=" ">⤒</div>
-    </div>
+  </div>
 </div>
+
+<!-- 游戏界面 -->
+<div id="game-screen" class="screen">
+  <div id="game">
+    <canvas id="c" width="800" height="400"></canvas>
+    <div id="ui"></div>
+    <div id="controls">
+      <div class="ctrl">
+        <div class="btn" id="left">◀</div>
+        <div class="btn" id="right">▶</div>
+      </div>
+      <div class="ctrl">
+        <div class="btn" id="jump">⤒</div>
+      </div>
+    </div>
+  </div>
+  <button class="back-btn" id="back-to-menu-btn">返回菜单</button>
+</div>
+
+<!-- 关卡选择界面 -->
+<div id="level-select-screen" class="screen">
+  <div class="container">
+    <h1 class="game-title" style="font-size:36px;margin-top:20px">选择关卡</h1>
+    <div class="level-grid" id="level-grid"></div>
+    <button class="back-btn" id="back-to-menu-btn2">返回菜单</button>
+  </div>
+</div>
+
+<!-- 关卡编辑器界面 -->
+<div id="editor-screen" class="screen">
+  <div class="container">
+    <h1 class="game-title" style="font-size:36px;margin-top:20px">关卡编辑器</h1>
+    
+    <div class="editor-tools">
+      <button class="editor-btn active" data-tool="platform">平台</button>
+      <button class="editor-btn" data-tool="moving">移动平台</button>
+      <button class="editor-btn" data-tool="trap">陷阱</button>
+      <button class="editor-btn" data-tool="spike">尖刺墙</button>
+      <button class="editor-btn" data-tool="start">起点</button>
+      <button class="editor-btn" data-tool="finish">终点</button>
+      <button class="editor-btn" data-tool="delete">删除</button>
+      <button class="editor-btn" id="clear-btn">清空</button>
+      <button class="editor-btn" id="test-btn">测试关卡</button>
+      <button class="editor-btn" id="save-btn">生成代码</button>
+    </div>
+    
+    <div style="position:relative">
+      <canvas id="editor-canvas" width="800" height="400"></canvas>
+    </div>
+    
+    <div class="editor-info">
+      提示：点击画布放置物体，拖动调整位置和大小。当前工具: <span id="current-tool">平台</span>
+    </div>
+    
+    <textarea id="code-output" readonly>生成的关卡代码将显示在这里...</textarea>
+    
+    <button class="back-btn" id="back-to-menu-btn3">返回菜单</button>
+  </div>
 </div>
 
 <script>
-const c=document.getElementById("c");
-const ctx=c.getContext("2d");
-const ui=document.getElementById("ui");
-const keys={};
+/* ================= 界面切换 ================= */
+const menuScreen = document.getElementById('menu-screen');
+const gameScreen = document.getElementById('game-screen');
+const levelSelectScreen = document.getElementById('level-select-screen');
+const editorScreen = document.getElementById('editor-screen');
 
-/* 键盘 & 触控 */
-document.addEventListener("keydown",e=>keys[e.key]=true);
-document.addEventListener("keyup",e=>keys[e.key]=false);
-document.querySelectorAll(".btn").forEach(b=>{
-    const k=b.dataset.key;
-    const p=()=>keys[k]=true;
-    const r=()=>keys[k]=false;
-    b.ontouchstart=e=>{e.preventDefault();p()};
-    b.ontouchend=e=>{e.preventDefault();r()};
-    b.onmousedown=p;b.onmouseup=r;b.onmouseleave=r;
+// 初始化显示菜单
+menuScreen.style.display = 'block';
+gameScreen.style.display = 'none';
+levelSelectScreen.style.display = 'none';
+editorScreen.style.display = 'none';
+
+// 按钮事件
+document.getElementById('start-game-btn').addEventListener('click', () => {
+  menuScreen.style.display = 'none';
+  gameScreen.style.display = 'block';
+  loadLevel(1);
 });
 
-/* 玩家 */
-const player={x:100,y:300,w:30,h:30,vx:0,vy:0,speed:5,jump:-15,onGround:false};
+document.getElementById('select-level-btn').addEventListener('click', () => {
+  menuScreen.style.display = 'none';
+  levelSelectScreen.style.display = 'block';
+  generateLevelButtons();
+});
 
-/* 参数（用于检测） */
-const MAX_JUMP_X = 220;   // 最大水平跳距
-const MAX_JUMP_Y = 120;   // 最大可上跳高度
+document.getElementById('editor-btn').addEventListener('click', () => {
+  menuScreen.style.display = 'none';
+  editorScreen.style.display = 'block';
+  initEditor();
+});
 
+// 返回按钮
+document.getElementById('back-to-menu-btn').addEventListener('click', backToMenu);
+document.getElementById('back-to-menu-btn2').addEventListener('click', backToMenu);
+document.getElementById('back-to-menu-btn3').addEventListener('click', backToMenu);
+
+function backToMenu() {
+  gameScreen.style.display = 'none';
+  levelSelectScreen.style.display = 'none';
+  editorScreen.style.display = 'none';
+  menuScreen.style.display = 'block';
+}
+
+/* ================= 关卡选择 ================= */
+function generateLevelButtons() {
+  const levelGrid = document.getElementById('level-grid');
+  levelGrid.innerHTML = '';
+  
+  for (let i = 1; i <= 50; i++) {
+    const btn = document.createElement('button');
+    btn.className = 'level-btn';
+    btn.textContent = i;
+    if (i % 3 === 0) {
+      btn.classList.add('boss');
+      btn.textContent = `B${i}`;
+    }
+    btn.addEventListener('click', () => {
+      levelSelectScreen.style.display = 'none';
+      gameScreen.style.display = 'block';
+      loadLevel(i);
+    });
+    levelGrid.appendChild(btn);
+  }
+}
+
+/* ================= 游戏代码 ================= */
+let currentLevel = 1;
+
+/* ================= 输入 ================= */
+const key={left:false,right:false,jump:false,down:false};
+let jumpPressed=false;
+
+document.addEventListener("keydown",e=>{
+  if(e.key==="ArrowLeft") key.left=true;
+  if(e.key==="ArrowRight") key.right=true;
+  if(e.key===" "||e.key==="ArrowUp") key.jump=true;
+  if(e.key==="ArrowDown") key.down=true;
+});
+document.addEventListener("keyup",e=>{
+  if(e.key==="ArrowLeft") key.left=false;
+  if(e.key==="ArrowRight") key.right=false;
+  if(e.key===" "||e.key==="ArrowUp") key.jump=false;
+  if(e.key==="ArrowDown") key.down=false;
+});
+
+function bindBtn(id,down,up){
+  const b=document.getElementById(id);
+  if(b){
+    b.onmousedown=down; b.onmouseup=up; b.onmouseleave=up;
+    b.ontouchstart=e=>{e.preventDefault();down()};
+    b.ontouchend=e=>{e.preventDefault();up()};
+  }
+}
+bindBtn("left",()=>key.left=true,()=>key.left=false);
+bindBtn("right",()=>key.right=true,()=>key.right=false);
+bindBtn("jump",()=>key.jump=true,()=>key.jump=false);
+
+/* ================= 画布 ================= */
+const c=document.getElementById("c"),ctx=c.getContext("2d");
+const ui=document.getElementById("ui");
+
+/* ================= 玩家 ================= */
+const player={
+  x:100,y:300,w:24,h:24,
+  vx:0,vy:0,
+  on:false,
+  wallSlide:false,
+  wallDir:0,
+  wallJumpCool:0,
+  jumps:0,
+  maxJumps:2,
+  dash:100,
+  dashCool:0
+};
+
+/* ================= 关卡数据 ================= */
 let level=1,camera=0;
-let platforms=[],moving=[],fake=[],blink=[];
-let finishPlatform=null;
-let finishLineX=0,finished=false;
-
-/* 碰撞 */
-function resolve(a,b){
-    const dx=(a.x+a.w/2)-(b.x+b.w/2);
-    const dy=(a.y+a.h/2)-(b.y+b.h/2);
-    const ox=(a.w+b.w)/2-Math.abs(dx);
-    const oy=(a.h+b.h)/2-Math.abs(dy);
-    if(ox>0&&oy>0){
-        if(ox<oy){a.x+=dx>0?ox:-ox;a.vx=0;}
-        else{a.y+=dy>0?oy:-oy;a.vy=0;if(dy<0)a.onGround=true;}
+const LEVELS=[];
+(function(){
+  for(let i=1;i<=50;i++){
+    let p=[{x:0,y:350,w:200,h:40}];
+    let m=[],s=[],x=250;
+    
+    let boss=i%3===0;
+    
+    let n=2+Math.floor(i/3);
+    for(let j=0;j<n;j++){
+      if(boss||(i>5 && Math.random()>0.4)){
+        let mp={x,y:220+Math.sin(j)*40,w:70,h:15,sx:x,d:80,t:j*20,sp:0.04+0.0015*i,px:x};
+        m.push(mp);p.push(mp);
+      }else{
+        let platformHeight = 240+Math.sin(j+i)*50;
+        if(platformHeight < 150) platformHeight = 150;
+        if(platformHeight > 320) platformHeight = 320;
+        let platformWidth = 70+Math.random()*40;
+        p.push({x,y:platformHeight,w:platformWidth,h:15});
+      }
+      
+      if(i>3 && Math.random()>0.4) {
+        let trapY = 330;
+        if(Math.random()>0.5){
+          s.push({x:x+40,y:trapY,w:25,h:25,movable:true,dir:1,sx:x+40});
+        } else {
+          s.push({x:x+40,y:trapY,w:25,h:25});
+        }
+      }
+      
+      x+=170+Math.random()*40 - (i>15?20:0);
+      
+      if(i>8 && Math.random()>0.5){
+        let spikeHeight = 120 + Math.random()*80;
+        let spikeY = 380 - spikeHeight;
+        s.push({x:x-80,y:spikeY,w:20,h:spikeHeight,vertical:true});
+      }
     }
+    
+    p.push({x:x+80,y:350,w:180,h:40,finish:1});
+    LEVELS.push({p,m,s,finish:x+80});
+  }
+})();
+
+let P=[],M=[],S=[],finish=0;
+function loadLevel(levelNum){
+  level = levelNum;
+  currentLevel = levelNum;
+  const L=LEVELS[level-1];
+  P=JSON.parse(JSON.stringify(L.p));
+  M=JSON.parse(JSON.stringify(L.m));
+  S=JSON.parse(JSON.stringify(L.s));
+  finish=L.finish;
+  player.x=100;player.y=300;player.vx=player.vy=0;
+  player.wallSlide=false; player.wallDir=0;
+  player.dash=100;
+  camera=0;
+  ui.innerText=`第 ${level} 关${level%3===0?" · BOSS":""}`;
 }
 
-/* ===== 可达性检测 ===== */
-function isReachable(){
-    const nodes = platforms.concat([finishPlatform]);
-    const visited = new Set();
-    const stack = [platforms[0]];
+/* ================= 碰撞检测 ================= */
+function hit(a,b){
+  let dx=(a.x+a.w/2)-(b.x+b.w/2);
+  let dy=(a.y+a.h/2)-(b.y+b.h/2);
+  let ox=(a.w+b.w)/2-Math.abs(dx);
+  let oy=(a.h+b.h)/2-Math.abs(dy);
+  if(ox>0&&oy>0){
+    if(ox<oy){a.x+=dx>0?ox:-ox;a.vx=0;}
+    else{a.y+=dy>0?oy:-oy;a.vy=0;if(dy<0)a.on=true;}
+  }
+}
 
-    while(stack.length){
-        const cur = stack.pop();
-        if(cur === finishPlatform) return true;
-        visited.add(cur);
-
-        for(const next of nodes){
-            if(visited.has(next) || next===cur) continue;
-
-            const dx = (next.x) - (cur.x + cur.w);
-            const dy = cur.y - next.y;
-
-            if(dx <= MAX_JUMP_X && dx >= -50 && dy <= MAX_JUMP_Y){
-                stack.push(next);
-            }
+function checkWallCollision(){
+  player.wallSlide=false;
+  player.wallDir=0;
+  
+  if(key.left || player.vx < 0){
+    for(let p of P){
+      if(player.y+player.h > p.y+2 && player.y < p.y+p.h-2){
+        if(player.x <= p.x+p.w+5 && player.x >= p.x+p.w-15){
+          player.wallSlide=true;
+          player.wallDir=-1;
+          player.x = p.x+p.w+1;
+          player.vx = 0;
+          player.jumps = 0;
+          break;
         }
+      }
     }
-    return false;
+  }
+  
+  if(key.right || player.vx > 0){
+    for(let p of P){
+      if(player.y+player.h > p.y+2 && player.y < p.y+p.h-2){
+        if(player.x+player.w >= p.x-5 && player.x+player.w <= p.x+15){
+          player.wallSlide=true;
+          player.wallDir=1;
+          player.x = p.x-player.w-1;
+          player.vx = 0;
+          player.jumps = 0;
+          break;
+        }
+      }
+    }
+  }
 }
 
-/* ===== 关卡生成 ===== */
-function gen(){
-    let tries=0;
-    do{
-        platforms=[];moving=[];fake=[];blink=[];
-        finished=false;camera=0;
-
-        platforms.push({x:0,y:350,w:200,h:50});
-
-        let x=260;
-
-        if(level===1){
-            for(let i=0;i<6;i++){
-                platforms.push({x,y:260+Math.sin(i)*40,w:100,h:20});
-                x+=150;
-            }
-        }
-
-        if(level===2){
-            platforms.push({x,y:260,w:100,h:20}); x+=150;
-            fake.push({x,y:260,w:90,h:20}); x+=120;
-            platforms.push({x,y:240,w:100,h:20}); x+=160;
-            fake.push({x,y:260,w:90,h:20}); x+=120;
-            platforms.push({x,y:260,w:100,h:20}); x+=160;
-        }
-
-        if(level===3){
-            for(let i=0;i<6;i++){
-                moving.push({x,y:220,sx:x,d:60,t:0,sp:0.03,w:60,h:20});
-                platforms.push(moving[moving.length-1]);
-                x+=160;
-            }
-        }
-
-        if(level===4){
-            for(let i=0;i<6;i++){
-                blink.push({x,y:230,w:80,h:20,t:i*30});
-                platforms.push(blink[blink.length-1]);
-                x+=150;
-            }
-        }
-
-        finishPlatform={x:x+80,y:350,w:200,h:50,finish:true};
-        platforms.push(finishPlatform);
-        finishLineX=finishPlatform.x;
-
-        tries++;
-    }while(!isReachable() && tries<20);
-
-    ui.innerText=`关卡 ${level}`;
+function handleDash(){
+  if(player.dashCool > 0){
+    player.dashCool--;
+  }
+  
+  if(!player.on && !player.wallSlide && player.dash > 0 && player.dashCool <= 0){
+    if(key.left && !key.right){
+      player.vx = -10;
+      player.dash -= 20;
+      player.dashCool = 30;
+    }
+    if(key.right && !key.left){
+      player.vx = 10;
+      player.dash -= 20;
+      player.dashCool = 30;
+    }
+  }
+  
+  if(player.on){
+    player.dash = Math.min(100, player.dash + 1);
+  }
 }
 
-function reset(){
-    player.x=100;player.y=300;
-    player.vx=player.vy=0;
-    gen();
-}
-
-/* 更新 */
+/* ================= 游戏循环 ================= */
 function update(){
-    player.vx=0;
-    if(keys.ArrowLeft)player.vx=-player.speed;
-    if(keys.ArrowRight)player.vx=player.speed;
-    if((keys[" "]||keys.ArrowUp)&&player.onGround){
-        player.vy=player.jump;player.onGround=false;
+  let targetVx = 0;
+  if(key.left) targetVx -= 6;
+  if(key.right) targetVx += 6;
+  
+  player.vx += (targetVx - player.vx) * 0.4;
+  player.vx = Math.max(-10, Math.min(10, player.vx));
+  
+  if(player.wallJumpCool > 0) player.wallJumpCool--;
+  
+  handleDash();
+  
+  if(key.jump && !jumpPressed){
+    if(player.on){
+      player.vy = -16;
+      player.on = false;
+      player.jumps = 1;
+      jumpPressed = true;
     }
-
-    player.vy+=0.8;
-    player.x+=player.vx;player.y+=player.vy;
-    player.onGround=false;
-
-    blink.forEach(b=>b.t=(b.t+1)%120);
-
-    [...platforms,...moving,...blink.filter(b=>b.t<60)]
-        .forEach(p=>resolve(player,p));
-
-    moving.forEach(p=>{
-        p.t+=p.sp;p.x=p.sx+Math.sin(p.t)*p.d;
-    });
-
-    if(!finished && player.x+player.w>=finishLineX){
-        finished=true;level++;reset();
+    else if(player.wallSlide && player.wallJumpCool <= 0){
+      player.vy = -14;
+      player.vx = 8 * -player.wallDir;
+      player.wallSlide = false;
+      player.wallJumpCool = 10;
+      player.jumps = 1;
+      jumpPressed = true;
     }
-
-    if(player.y>c.height)reset();
-    if(player.x>c.width/2)camera=player.x-c.width/2;
+    else if(player.jumps < player.maxJumps){
+      player.vy = -14;
+      player.jumps++;
+      jumpPressed = true;
+    }
+  }
+  
+  if(!key.jump) jumpPressed = false;
+  
+  player.vy += 0.9;
+  
+  if(player.wallSlide && player.vy > 0){
+    player.vy *= 0.5;
+    if(player.wallDir === -1 && key.right){
+      player.vy -= 2;
+    }
+    if(player.wallDir === 1 && key.left){
+      player.vy -= 2;
+    }
+  }
+  
+  if(key.down && !player.on && !player.wallSlide){
+    player.vy += 2;
+  }
+  
+  player.x += player.vx;
+  player.y += player.vy;
+  player.on = false;
+  
+  M.forEach(p=>p.px=p.x);
+  M.forEach(p=>{p.t+=p.sp;p.x=p.sx+Math.sin(p.t)*p.d});
+  
+  checkWallCollision();
+  
+  P.forEach(p=>hit(player,p));
+  
+  M.forEach(p=>{
+    if(player.on&&player.y+player.h<=p.y+2&&player.x+player.w>p.x&&player.x<p.x+p.w){
+      player.x+=p.x-p.px;
+    }
+  });
+  
+  S.forEach(s=>{
+    if(s.movable){
+      if(!s.sx) s.sx = s.x;
+      s.x = s.sx + Math.sin(Date.now()/700) * 60;
+    }
+  });
+  
+  S.forEach(s=>{
+    if(s.vertical){
+      if(player.x < s.x+s.w && player.x+player.w > s.x && 
+         player.y < s.y+s.h && player.y+player.h > s.y){
+        loadLevel(currentLevel);
+      }
+    } else {
+      if(player.x<s.x+s.w&&player.x+player.w>s.x&&player.y<s.y+s.h&&player.y+player.h>s.y){
+        loadLevel(currentLevel);
+      }
+    }
+  });
+  
+  if(player.x+player.w>finish){
+    currentLevel++;
+    if(currentLevel > LEVELS.length) currentLevel = LEVELS.length;
+    loadLevel(currentLevel);
+  }
+  
+  if(player.y>420) loadLevel(currentLevel);
+  if(player.x < -50) player.x = -50;
+  
+  if(player.x>400) camera=player.x-400;
+  if(player.x<200 && camera>0) camera=Math.max(0, player.x-200);
 }
 
-/* 渲染 */
 function draw(){
-    ctx.clearRect(0,0,800,400);
-
-    platforms.forEach(p=>{
-        ctx.fillStyle=p.finish?"#f1c40f":"#2ecc71";
-        ctx.fillRect(p.x-camera,p.y,p.w,p.h);
-    });
-
-    fake.forEach(p=>{
-        ctx.fillStyle="rgba(200,200,200,0.4)";
-        ctx.fillRect(p.x-camera,p.y,p.w,p.h);
-    });
-
-    ctx.fillStyle="#e74c3c";
-    ctx.fillRect(player.x-camera,player.y,player.w,player.h);
+  ctx.clearRect(0,0,800,400);
+  
+  let gradient = ctx.createLinearGradient(0,0,0,400);
+  gradient.addColorStop(0,"#111");
+  gradient.addColorStop(1,"#222");
+  ctx.fillStyle=gradient;
+  ctx.fillRect(0,0,800,400);
+  
+  ctx.strokeStyle="rgba(100,100,100,0.1)";
+  ctx.lineWidth=1;
+  for(let i=0;i<800;i+=50){
+    ctx.beginPath();
+    ctx.moveTo(i,0);
+    ctx.lineTo(i,400);
+    ctx.stroke();
+  }
+  for(let i=0;i<400;i+=50){
+    ctx.beginPath();
+    ctx.moveTo(0,i);
+    ctx.lineTo(800,i);
+    ctx.stroke();
+  }
+  
+  P.forEach(p=>{
+    ctx.fillStyle="rgba(0,0,0,0.3)";
+    ctx.fillRect(p.x-camera+3,p.y+3,p.w,p.h);
+    
+    ctx.fillStyle=p.finish?"#f1c40f":"#27ae60";
+    ctx.fillRect(p.x-camera,p.y,p.w,p.h);
+    
+    ctx.strokeStyle=p.finish?"#f39c12":"#2ecc71";
+    ctx.lineWidth=2;
+    ctx.strokeRect(p.x-camera,p.y,p.w,p.h);
+  });
+  
+  S.forEach(s=>{
+    if(s.vertical){
+      ctx.fillStyle="#c0392b";
+      let spikeCount = Math.floor(s.h / 30);
+      let spikeWidth = 20;
+      
+      for(let i=0;i<spikeCount;i++){
+        let spikeY = s.y + i*30;
+        ctx.beginPath();
+        ctx.moveTo(s.x-camera, spikeY+30);
+        ctx.lineTo(s.x-camera+spikeWidth/2, spikeY);
+        ctx.lineTo(s.x-camera+spikeWidth, spikeY+30);
+        ctx.closePath();
+        ctx.fill();
+      }
+      
+      ctx.fillStyle="rgba(192,57,43,0.5)";
+      ctx.fillRect(s.x-camera+3, s.y+3, s.w, s.h);
+    } else {
+      ctx.fillStyle="#c0392b";
+      ctx.fillRect(s.x-camera,s.y,s.w,s.h);
+      
+      ctx.fillStyle="#fff";
+      ctx.font="14px Arial";
+      ctx.fillText("☠", s.x-camera+6, s.y+18);
+    }
+  });
+  
+  ctx.fillStyle="rgba(0,0,0,0.3)";
+  ctx.fillRect(player.x-camera+2,player.y+2,player.w,player.h);
+  
+  ctx.fillStyle="#e74c3c";
+  ctx.fillRect(player.x-camera,player.y,player.w,player.h);
+  
+  ctx.fillStyle="#fff";
+  let eyeX = player.vx > 0 ? player.x+player.w-8 : player.x+6;
+  ctx.fillRect(eyeX-camera, player.y+7, 4, 4);
+  ctx.fillRect(eyeX-camera-(player.vx>0?8:-8), player.y+7, 4, 4);
+  
+  if(player.wallSlide){
+    ctx.strokeStyle="rgba(52, 152, 219, 0.8)";
+    ctx.lineWidth=4;
+    let wallX = player.wallDir === -1 ? player.x : player.x+player.w;
+    ctx.beginPath();
+    ctx.moveTo(wallX-camera, player.y+5);
+    ctx.lineTo(wallX-camera, player.y+player.h-5);
+    ctx.stroke();
+  }
+  
+  ctx.fillStyle="rgba(255,255,255,0.7)";
+  ctx.font="14px Arial";
+  ctx.fillText(`跳跃: ${player.maxJumps-player.jumps}`, player.x-camera+5, player.y-5);
+  
+  if(player.dash < 100){
+    ctx.fillStyle="rgba(255,255,255,0.5)";
+    ctx.fillRect(player.x-camera, player.y-15, player.w, 5);
+    ctx.fillStyle="#3498db";
+    ctx.fillRect(player.x-camera, player.y-15, player.w*(player.dash/100), 5);
+  }
 }
 
-function loop(){update();draw();requestAnimationFrame(loop);}
-reset();loop();
+function gameLoop(){
+  update();
+  draw();
+  requestAnimationFrame(gameLoop);
+}
+
+// 初始化游戏
+loadLevel(1);
+gameLoop();
+
+/* ================= 关卡编辑器 ================= */
+let editorCtx, currentTool = 'platform';
+let editorObjects = [];
+let selectedObject = null;
+let isDragging = false;
+let startX, startY;
+let editorCanvas;
+
+function initEditor() {
+  editorCanvas = document.getElementById('editor-canvas');
+  editorCtx = editorCanvas.getContext('2d');
+  
+  // 初始化编辑器对象
+  editorObjects = [
+    {type: 'start', x: 100, y: 300, w: 24, h: 24},
+    {type: 'platform', x: 0, y: 350, w: 200, h: 40},
+    {type: 'finish', x: 600, y: 350, w: 180, h: 40, finish: true}
+  ];
+  
+  // 工具按钮事件
+  document.querySelectorAll('.editor-btn[data-tool]').forEach(btn => {
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('.editor-btn[data-tool]').forEach(b => b.classList.remove('active'));
+      this.classList.add('active');
+      currentTool = this.dataset.tool;
+      document.getElementById('current-tool').textContent = getToolName(currentTool);
+      selectedObject = null;
+      drawEditor();
+    });
+  });
+  
+  // 清空按钮
+  document.getElementById('clear-btn').addEventListener('click', () => {
+    editorObjects = [
+      {type: 'start', x: 100, y: 300, w: 24, h: 24}
+    ];
+    drawEditor();
+  });
+  
+  // 测试按钮
+  document.getElementById('test-btn').addEventListener('click', testLevel);
+  
+  // 生成代码按钮
+  document.getElementById('save-btn').addEventListener('click', generateCode);
+  
+  // 画布事件
+  editorCanvas.addEventListener('mousedown', handleEditorMouseDown);
+  editorCanvas.addEventListener('mousemove', handleEditorMouseMove);
+  editorCanvas.addEventListener('mouseup', handleEditorMouseUp);
+  
+  drawEditor();
+}
+
+function getToolName(tool) {
+  const names = {
+    'platform': '平台',
+    'moving': '移动平台',
+    'trap': '陷阱',
+    'spike': '尖刺墙',
+    'start': '起点',
+    'finish': '终点',
+    'delete': '删除'
+  };
+  return names[tool] || tool;
+}
+
+function handleEditorMouseDown(e) {
+  const rect = editorCanvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  
+  // 检查是否点击了现有对象
+  selectedObject = null;
+  for(let obj of editorObjects) {
+    if(x >= obj.x && x <= obj.x + obj.w && y >= obj.y && y <= obj.y + obj.h) {
+      selectedObject = obj;
+      break;
+    }
+  }
+  
+  if(selectedObject) {
+    // 如果当前是删除工具，删除对象
+    if(currentTool === 'delete') {
+      editorObjects = editorObjects.filter(obj => obj !== selectedObject);
+      selectedObject = null;
+      drawEditor();
+      return;
+    }
+    
+    // 否则开始拖动
+    isDragging = true;
+    startX = x - selectedObject.x;
+    startY = y - selectedObject.y;
+  } else {
+    // 创建新对象
+    if(currentTool !== 'delete') {
+      let newObj;
+      const defaultSize = 40;
+      
+      switch(currentTool) {
+        case 'platform':
+          newObj = {type: 'platform', x: x-50, y: y-10, w: 100, h: 20};
+          break;
+        case 'moving':
+          newObj = {type: 'moving', x: x-45, y: y-10, w: 90, h: 20, sx: x-45, d: 80, sp: 0.04};
+          break;
+        case 'trap':
+          newObj = {type: 'trap', x: x-15, y: y-15, w: 30, h: 30};
+          break;
+        case 'spike':
+          newObj = {type: 'spike', x: x-10, y: y-75, w: 20, h: 150, vertical: true};
+          break;
+        case 'start':
+          // 确保只有一个起点
+          editorObjects = editorObjects.filter(obj => obj.type !== 'start');
+          newObj = {type: 'start', x: x-12, y: y-12, w: 24, h: 24};
+          break;
+        case 'finish':
+          // 确保只有一个终点
+          editorObjects = editorObjects.filter(obj => obj.type !== 'finish');
+          newObj = {type: 'finish', x: x-90, y: y-20, w: 180, h: 40, finish: true};
+          break;
+      }
+      
+      if(newObj) {
+        // 确保对象在画布内
+        if(newObj.x < 0) newObj.x = 0;
+        if(newObj.y < 0) newObj.y = 0;
+        if(newObj.x + newObj.w > 800) newObj.x = 800 - newObj.w;
+        if(newObj.y + newObj.h > 400) newObj.y = 400 - newObj.h;
+        
+        editorObjects.push(newObj);
+        selectedObject = newObj;
+        isDragging = true;
+        startX = x - newObj.x;
+        startY = y - newObj.y;
+      }
+    }
+  }
+  
+  drawEditor();
+}
+
+function handleEditorMouseMove(e) {
+  if(!isDragging || !selectedObject) return;
+  
+  const rect = editorCanvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  
+  selectedObject.x = x - startX;
+  selectedObject.y = y - startY;
+  
+  // 限制在画布内
+  selectedObject.x = Math.max(0, Math.min(800 - selectedObject.w, selectedObject.x));
+  selectedObject.y = Math.max(0, Math.min(400 - selectedObject.h, selectedObject.y));
+  
+  drawEditor();
+}
+
+function handleEditorMouseUp() {
+  isDragging = false;
+  drawEditor();
+}
+
+function drawEditor() {
+  editorCtx.clearRect(0, 0, 800, 400);
+  
+  // 绘制网格
+  editorCtx.strokeStyle = "rgba(100,100,100,0.2)";
+  editorCtx.lineWidth = 1;
+  for(let i = 0; i < 800; i += 50) {
+    editorCtx.beginPath();
+    editorCtx.moveTo(i, 0);
+    editorCtx.lineTo(i, 400);
+    editorCtx.stroke();
+  }
+  for(let i = 0; i < 400; i += 50) {
+    editorCtx.beginPath();
+    editorCtx.moveTo(0, i);
+    editorCtx.lineTo(800, i);
+    editorCtx.stroke();
+  }
+  
+  // 绘制网格坐标
+  editorCtx.fillStyle = "rgba(255,255,255,0.3)";
+  editorCtx.font = "10px Arial";
+  for(let i = 0; i < 800; i += 100) {
+    editorCtx.fillText(i, i+2, 12);
+  }
+  for(let i = 0; i < 400; i += 100) {
+    editorCtx.fillText(i, 2, i+10);
+  }
+  
+  // 绘制对象
+  editorObjects.forEach(obj => {
+    // 绘制阴影
+    editorCtx.fillStyle = "rgba(0,0,0,0.3)";
+    editorCtx.fillRect(obj.x+2, obj.y+2, obj.w, obj.h);
+    
+    // 绘制对象
+    editorCtx.fillStyle = getObjectColor(obj.type);
+    editorCtx.fillRect(obj.x, obj.y, obj.w, obj.h);
+    
+    // 边框
+    editorCtx.strokeStyle = obj === selectedObject ? "#fff" : "#ccc";
+    editorCtx.lineWidth = obj === selectedObject ? 3 : 1;
+    editorCtx.strokeRect(obj.x, obj.y, obj.w, obj.h);
+    
+    // 文字标签
+    editorCtx.fillStyle = "#fff";
+    editorCtx.font = "12px Arial";
+    editorCtx.textAlign = "center";
+    
+    let label = getObjectLabel(obj.type);
+    if(obj.type === 'moving') label = "移动平台";
+    editorCtx.fillText(label, obj.x + obj.w/2, obj.y + obj.h/2 + 4);
+  });
+}
+
+function getObjectColor(type) {
+  const colors = {
+    'platform': '#27ae60',
+    'moving': '#2980b9',
+    'trap': '#c0392b',
+    'spike': '#8b0000',
+    'start': '#e74c3c',
+    'finish': '#f1c40f'
+  };
+  return colors[type] || '#95a5a6';
+}
+
+function getObjectLabel(type) {
+  const labels = {
+    'platform': '平台',
+    'moving': '移动',
+    'trap': '陷阱',
+    'spike': '尖刺',
+    'start': '起点',
+    'finish': '终点'
+  };
+  return labels[type] || type;
+}
+
+function testLevel() {
+  // 切换到游戏界面测试当前关卡
+  editorScreen.style.display = 'none';
+  gameScreen.style.display = 'block';
+  
+  // 从编辑器对象生成关卡
+  P = [];
+  M = [];
+  S = [];
+  finish = 0;
+  
+  let startObj = editorObjects.find(obj => obj.type === 'start');
+  if(startObj) {
+    player.x = startObj.x;
+    player.y = startObj.y;
+  } else {
+    player.x = 100;
+    player.y = 300;
+  }
+  
+  editorObjects.forEach(obj => {
+    switch(obj.type) {
+      case 'platform':
+        P.push({x: obj.x, y: obj.y, w: obj.w, h: obj.h});
+        break;
+      case 'moving':
+        let mp = {x: obj.x, y: obj.y, w: obj.w, h: obj.h, sx: obj.sx || obj.x, d: obj.d || 80, t: 0, sp: obj.sp || 0.04};
+        M.push(mp);
+        P.push(mp);
+        break;
+      case 'trap':
+        S.push({x: obj.x, y: obj.y, w: obj.w, h: obj.h});
+        break;
+      case 'spike':
+        S.push({x: obj.x, y: obj.y, w: obj.w, h: obj.h, vertical: true});
+        break;
+      case 'finish':
+        P.push({x: obj.x, y: obj.y, w: obj.w, h: obj.h, finish: true});
+        finish = obj.x + obj.w;
+        break;
+    }
+  });
+  
+  // 如果没有终点，添加一个默认的
+  if(finish === 0) {
+    let lastX = 600;
+    if(P.length > 0) {
+      lastX = Math.max(...P.map(p => p.x + p.w)) + 100;
+    }
+    P.push({x: lastX, y: 350, w: 180, h: 40, finish: true});
+    finish = lastX + 180;
+  }
+  
+  // 确保至少有一个平台
+  if(P.length === 0) {
+    P.push({x: 0, y: 350, w: 200, h: 40});
+  }
+  
+  camera = 0;
+  ui.innerText = "测试自定义关卡";
+}
+
+function generateCode() {
+  let platforms = [];
+  let movingPlatforms = [];
+  let traps = [];
+  let startObj = null;
+  let finishObj = null;
+  
+  editorObjects.forEach(obj => {
+    switch(obj.type) {
+      case 'platform':
+        platforms.push(obj);
+        break;
+      case 'moving':
+        movingPlatforms.push(obj);
+        break;
+      case 'trap':
+        traps.push(obj);
+        break;
+      case 'spike':
+        traps.push(obj);
+        break;
+      case 'start':
+        startObj = obj;
+        break;
+      case 'finish':
+        finishObj = obj;
+        break;
+    }
+  });
+  
+  let code = `// 自定义关卡代码\n`;
+  code += `// 将此代码复制到游戏中使用\n\n`;
+  code += `const customLevel = {\n`;
+  code += `  p: [\n`;
+  
+  // 添加平台
+  platforms.forEach((plat, i) => {
+    code += `    {x: ${plat.x}, y: ${plat.y}, w: ${plat.w}, h: ${plat.h}}`;
+    if(i < platforms.length - 1 || movingPlatforms.length > 0 || finishObj) code += ',';
+    code += '\n';
+  });
+  
+  // 添加移动平台
+  movingPlatforms.forEach((mp, i) => {
+    code += `    {x: ${mp.x}, y: ${mp.y}, w: ${mp.w}, h: ${mp.h}, sx: ${mp.sx || mp.x}, d: ${mp.d || 80}, t: 0, sp: ${mp.sp || 0.04}}`;
+    if(i < movingPlatforms.length - 1 || finishObj) code += ',';
+    code += '\n';
+  });
+  
+  // 添加终点
+  if(finishObj) {
+    code += `    {x: ${finishObj.x}, y: ${finishObj.y}, w: ${finishObj.w}, h: ${finishObj.h}, finish: true}\n`;
+  } else {
+    code += `    {x: 600, y: 350, w: 180, h: 40, finish: true}\n`;
+  }
+  
+  code += `  ],\n\n`;
+  
+  code += `  m: [\n`;
+  movingPlatforms.forEach((mp, i) => {
+    code += `    {x: ${mp.x}, y: ${mp.y}, w: ${mp.w}, h: ${mp.h}, sx: ${mp.sx || mp.x}, d: ${mp.d || 80}, t: 0, sp: ${mp.sp || 0.04}}`;
+    if(i < movingPlatforms.length - 1) code += ',';
+    code += '\n';
+  });
+  code += `  ],\n\n`;
+  
+  code += `  s: [\n`;
+  traps.forEach((trap, i) => {
+    if(trap.vertical) {
+      code += `    {x: ${trap.x}, y: ${trap.y}, w: ${trap.w}, h: ${trap.h}, vertical: true}`;
+    } else {
+      code += `    {x: ${trap.x}, y: ${trap.y}, w: ${trap.w}, h: ${trap.h}}`;
+    }
+    if(i < traps.length - 1) code += ',';
+    code += '\n';
+  });
+  code += `  ],\n\n`;
+  
+  if(finishObj) {
+    code += `  finish: ${finishObj.x + finishObj.w}\n`;
+  } else {
+    code += `  finish: 780\n`;
+  }
+  
+  code += `};\n\n`;
+  
+  code += `// 使用方法：\n`;
+  code += `// 1. 在游戏代码中找到 LEVELS 数组\n`;
+  code += `// 2. 将 customLevel 添加到 LEVELS 数组中\n`;
+  code += `// 3. 调用 loadLevel(LEVELS.length) 加载自定义关卡\n`;
+  
+  document.getElementById('code-output').value = code;
+}
 </script>
 </body>
 </html>
