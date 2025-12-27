@@ -58,6 +58,14 @@ canvas{display:block}
   font-size:16px;
   font-weight:bold;
 }
+#test-death-count{
+  position:absolute;
+  top:50px;
+  left:10px;
+  color:#f39c12;
+  font-size:16px;
+  font-weight:bold;
+}
 #controls{position:absolute;bottom:10px;width:100%;display:flex;justify-content:space-between;padding:0 20px;box-sizing:border-box}
 .ctrl{display:flex;gap:10px}
 .btn{
@@ -67,6 +75,21 @@ canvas{display:block}
   color:#fff;font-size:26px;
   display:flex;align-items:center;justify-content:center;
   user-select:none;
+}
+.test-exit-btn{
+  position:absolute;
+  top:20px;
+  right:20px;
+  padding:10px 20px;
+  background:#e74c3c;
+  border:none;
+  color:#fff;
+  border-radius:8px;
+  cursor:pointer;
+  font-size:14px;
+}
+.test-exit-btn:hover{
+  background:#c0392b;
 }
 </style>
 </head>
@@ -94,6 +117,8 @@ canvas{display:block}
     <canvas id="c" width="800" height="400"></canvas>
     <div id="ui"></div>
     <div id="death-count"></div>
+    <div id="test-death-count"></div>
+    <button id="test-exit-btn" class="test-exit-btn" style="display:none;">返回编辑器</button>
     <div id="controls">
       <div class="ctrl">
         <div class="btn" id="left">◀</div>
@@ -157,12 +182,17 @@ let currentLevel = 1;
 let deathCount = 0;
 let totalDeaths = 0;
 let levelDeaths = {};
+let isTestingCustomLevel = false;
+let testDeathCount = 0;
+let testLevelData = null;
 
 /* ================= 界面切换 ================= */
 const menuScreen = document.getElementById('menu-screen');
 const gameScreen = document.getElementById('game-screen');
 const levelSelectScreen = document.getElementById('level-select-screen');
 const editorScreen = document.getElementById('editor-screen');
+const testExitBtn = document.getElementById('test-exit-btn');
+const testDeathCountDisplay = document.getElementById('test-death-count');
 
 // 初始化显示菜单
 menuScreen.style.display = 'block';
@@ -174,13 +204,24 @@ editorScreen.style.display = 'none';
 function updateDeathDisplays() {
   document.getElementById('total-deaths').textContent = totalDeaths;
   document.getElementById('total-deaths-level').textContent = totalDeaths;
-  document.getElementById('death-count').textContent = `死亡: ${deathCount}`;
+  
+  if (isTestingCustomLevel) {
+    document.getElementById('death-count').style.display = 'none';
+    testDeathCountDisplay.style.display = 'block';
+    testDeathCountDisplay.textContent = `测试死亡: ${testDeathCount}`;
+  } else {
+    document.getElementById('death-count').style.display = 'block';
+    testDeathCountDisplay.style.display = 'none';
+    document.getElementById('death-count').textContent = `死亡: ${deathCount}`;
+  }
 }
 
 // 按钮事件
 document.getElementById('start-game-btn').addEventListener('click', () => {
   menuScreen.style.display = 'none';
   gameScreen.style.display = 'block';
+  isTestingCustomLevel = false;
+  testExitBtn.style.display = 'none';
   loadLevel(1);
 });
 
@@ -201,11 +242,24 @@ document.getElementById('back-to-menu-btn').addEventListener('click', backToMenu
 document.getElementById('back-to-menu-btn2').addEventListener('click', backToMenu);
 document.getElementById('back-to-menu-btn3').addEventListener('click', backToMenu);
 
+// 测试退出按钮
+testExitBtn.addEventListener('click', () => {
+  isTestingCustomLevel = false;
+  testDeathCount = 0;
+  editorScreen.style.display = 'block';
+  gameScreen.style.display = 'none';
+  testExitBtn.style.display = 'none';
+  drawEditor();
+});
+
 function backToMenu() {
   gameScreen.style.display = 'none';
   levelSelectScreen.style.display = 'none';
   editorScreen.style.display = 'none';
   menuScreen.style.display = 'block';
+  isTestingCustomLevel = false;
+  testDeathCount = 0;
+  testExitBtn.style.display = 'none';
   updateDeathDisplays();
 }
 
@@ -232,6 +286,8 @@ function generateLevelButtons() {
     btn.addEventListener('click', () => {
       levelSelectScreen.style.display = 'none';
       gameScreen.style.display = 'block';
+      isTestingCustomLevel = false;
+      testExitBtn.style.display = 'none';
       loadLevel(i);
     });
     levelGrid.appendChild(btn);
@@ -348,6 +404,31 @@ function loadLevel(levelNum){
   player.dash=100;
   camera=0;
   ui.innerText=`第 ${level} 关${level%3===0?" · BOSS":""}`;
+  updateDeathDisplays();
+}
+
+// 加载测试关卡
+function loadTestLevel() {
+  if (!testLevelData) return;
+  
+  P = JSON.parse(JSON.stringify(testLevelData.p));
+  M = JSON.parse(JSON.stringify(testLevelData.m));
+  S = JSON.parse(JSON.stringify(testLevelData.s));
+  finish = testLevelData.finish;
+  
+  // 查找起点
+  let startObj = testLevelData.startObj || {x: 100, y: 300};
+  player.x = startObj.x;
+  player.y = startObj.y;
+  
+  player.vx = player.vy = 0;
+  player.wallSlide = false;
+  player.wallDir = 0;
+  player.dash = 100;
+  camera = 0;
+  
+  ui.innerText = "测试自定义关卡";
+  testExitBtn.style.display = 'block';
   updateDeathDisplays();
 }
 
@@ -498,30 +579,54 @@ function update(){
     }
   });
   
+  // 检测与陷阱的碰撞
   S.forEach(s=>{
     if(s.vertical){
       if(player.x < s.x+s.w && player.x+player.w > s.x && 
          player.y < s.y+s.h && player.y+player.h > s.y){
-        increaseDeathCount();
-        loadLevel(currentLevel);
+        if (isTestingCustomLevel) {
+          testDeathCount++;
+          updateDeathDisplays();
+          loadTestLevel();
+        } else {
+          increaseDeathCount();
+          loadLevel(currentLevel);
+        }
       }
     } else {
       if(player.x<s.x+s.w&&player.x+player.w>s.x&&player.y<s.y+s.h&&player.y+player.h>s.y){
-        increaseDeathCount();
-        loadLevel(currentLevel);
+        if (isTestingCustomLevel) {
+          testDeathCount++;
+          updateDeathDisplays();
+          loadTestLevel();
+        } else {
+          increaseDeathCount();
+          loadLevel(currentLevel);
+        }
       }
     }
   });
   
   if(player.x+player.w>finish){
-    currentLevel++;
-    if(currentLevel > LEVELS.length) currentLevel = LEVELS.length;
-    loadLevel(currentLevel);
+    if (isTestingCustomLevel) {
+      // 测试关卡通关，显示提示
+      ui.innerText = "测试关卡通关! 按右上角按钮返回编辑器";
+    } else {
+      currentLevel++;
+      if(currentLevel > LEVELS.length) currentLevel = LEVELS.length;
+      loadLevel(currentLevel);
+    }
   }
   
   if(player.y>420) {
-    increaseDeathCount();
-    loadLevel(currentLevel);
+    if (isTestingCustomLevel) {
+      testDeathCount++;
+      updateDeathDisplays();
+      loadTestLevel();
+    } else {
+      increaseDeathCount();
+      loadLevel(currentLevel);
+    }
   }
   if(player.x < -50) player.x = -50;
   
@@ -892,62 +997,74 @@ function testLevel() {
   editorScreen.style.display = 'none';
   gameScreen.style.display = 'block';
   
-  // 从编辑器对象生成关卡
-  P = [];
-  M = [];
-  S = [];
-  finish = 0;
-  
-  let startObj = editorObjects.find(obj => obj.type === 'start');
-  if(startObj) {
-    player.x = startObj.x;
-    player.y = startObj.y;
-  } else {
-    player.x = 100;
-    player.y = 300;
-  }
+  // 从编辑器对象生成关卡数据
+  let platforms = [];
+  let movingPlatforms = [];
+  let traps = [];
+  let startObj = null;
+  let finishObj = null;
   
   editorObjects.forEach(obj => {
     switch(obj.type) {
       case 'platform':
-        P.push({x: obj.x, y: obj.y, w: obj.w, h: obj.h});
+        platforms.push({x: obj.x, y: obj.y, w: obj.w, h: obj.h});
         break;
       case 'moving':
         let mp = {x: obj.x, y: obj.y, w: obj.w, h: obj.h, sx: obj.sx || obj.x, d: obj.d || 80, t: 0, sp: obj.sp || 0.04};
-        M.push(mp);
-        P.push(mp);
+        movingPlatforms.push(mp);
+        platforms.push(mp);
         break;
       case 'trap':
-        S.push({x: obj.x, y: obj.y, w: obj.w, h: obj.h});
+        traps.push({x: obj.x, y: obj.y, w: obj.w, h: obj.h});
         break;
       case 'spike':
-        S.push({x: obj.x, y: obj.y, w: obj.w, h: obj.h, vertical: true});
+        traps.push({x: obj.x, y: obj.y, w: obj.w, h: obj.h, vertical: true});
+        break;
+      case 'start':
+        startObj = {x: obj.x, y: obj.y};
         break;
       case 'finish':
-        P.push({x: obj.x, y: obj.y, w: obj.w, h: obj.h, finish: true});
-        finish = obj.x + obj.w;
+        finishObj = {x: obj.x, y: obj.y, w: obj.w, h: obj.h, finish: true};
+        platforms.push(finishObj);
         break;
     }
   });
   
+  // 如果没有起点，设置一个默认的
+  if(!startObj) {
+    startObj = {x: 100, y: 300};
+  }
+  
   // 如果没有终点，添加一个默认的
-  if(finish === 0) {
+  if(!finishObj) {
     let lastX = 600;
-    if(P.length > 0) {
-      lastX = Math.max(...P.map(p => p.x + p.w)) + 100;
+    if(platforms.length > 0) {
+      lastX = Math.max(...platforms.map(p => p.x + p.w)) + 100;
     }
-    P.push({x: lastX, y: 350, w: 180, h: 40, finish: true});
-    finish = lastX + 180;
+    finishObj = {x: lastX, y: 350, w: 180, h: 40, finish: true};
+    platforms.push(finishObj);
   }
   
   // 确保至少有一个平台
-  if(P.length === 0) {
-    P.push({x: 0, y: 350, w: 200, h: 40});
+  if(platforms.length === 0) {
+    platforms.push({x: 0, y: 350, w: 200, h: 40});
   }
   
-  camera = 0;
-  ui.innerText = "测试自定义关卡";
-  document.getElementById('death-count').textContent = "死亡: 0";
+  // 构建测试关卡数据
+  testLevelData = {
+    p: platforms,
+    m: movingPlatforms,
+    s: traps,
+    finish: finishObj.x + finishObj.w,
+    startObj: startObj
+  };
+  
+  // 设置为测试模式
+  isTestingCustomLevel = true;
+  testDeathCount = 0;
+  
+  // 加载测试关卡
+  loadTestLevel();
 }
 
 function generateCode() {
