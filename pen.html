@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>弹笔游戏（小桌面）</title>
+<style>
+body{
+    margin:0;
+    background:#eee;
+    font-family:sans-serif;
+    text-align:center;
+}
+button{
+    font-size:18px;
+    padding:10px 25px;
+    margin:10px;
+    cursor:pointer;
+}
+#menu{
+    margin-top:120px;
+}
+#info{
+    font-size:16px;
+    margin:10px;
+}
+#wrap{
+    display:none;
+    position:relative;
+    width:490px;
+    margin:auto;
+}
+#game{
+    width:490px;
+    height:420px;
+    border:8px solid #7b4a12;
+    background:#caa46a;
+}
+#aim{
+    position:absolute;
+    left:0;
+    top:0;
+    pointer-events:none;
+}
+canvas{display:block;}
+</style>
+</head>
+<body>
+
+<div id="menu">
+    <h1>✏️ 弹笔游戏</h1>
+    <button onclick="startGame('pvp')">🎮 双人对战</button><br>
+    <button onclick="startGame('ai')">🤖 人机对战</button>
+</div>
+
+<div id="info"></div>
+
+<div id="wrap">
+    <div id="game"></div>
+    <canvas id="aim" width="490" height="420"></canvas>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/matter-js@0.19.0/build/matter.min.js"></script>
+<script>
+const {Engine,Render,Runner,World,Bodies,Body,Events} = Matter;
+
+/* ===== 尺寸（按笔比例） ===== */
+const PEN_LENGTH = 70;
+const WIDTH  = PEN_LENGTH * 7; // 490
+const HEIGHT = PEN_LENGTH * 6; // 420
+
+/* ===== 物理参数 ===== */
+const FORCE_PER_PIXEL = 0.00035; // 小桌面适配后略增
+const MAX_FORCE = 0.02;
+const ROTATION_FACTOR = 0.004;
+const STOP_SPEED = 0.12;
+
+/* ===== 全局状态 ===== */
+let mode="pvp";
+let engine, runner, render;
+let pens=[], sensors=[];
+let currentPlayer=1;
+let waiting=false;
+const info=document.getElementById("info");
+
+/* ===== 启动 ===== */
+function startGame(m){
+    mode=m;
+    document.getElementById("menu").style.display="none";
+    document.getElementById("wrap").style.display="block";
+    info.textContent="当前回合：玩家 1（蓝色）";
+    init();
+}
+
+function init(){
+    engine=Engine.create();
+    engine.gravity.y=0;
+
+    render=Render.create({
+        element:document.getElementById("game"),
+        engine,
+        options:{
+            width:WIDTH,
+            height:HEIGHT,
+            wireframes:false,
+            background:"#caa46a"
+        }
+    });
+    Render.run(render);
+
+    runner=Runner.create();
+    Runner.run(runner,engine);
+
+    /* ===== 掉落传感器（无反弹） ===== */
+    sensors=[
+        Bodies.rectangle(WIDTH/2,-80,WIDTH*2,160,{isStatic:true,isSensor:true}),
+        Bodies.rectangle(WIDTH/2,HEIGHT+80,WIDTH*2,160,{isStatic:true,isSensor:true}),
+        Bodies.rectangle(-80,HEIGHT/2,160,HEIGHT*2,{isStatic:true,isSensor:true}),
+        Bodies.rectangle(WIDTH+80,HEIGHT/2,160,HEIGHT*2,{isStatic:true,isSensor:true})
+    ];
+
+    function pen(x,y,color,player){
+        const p=Bodies.rectangle(x,y,PEN_LENGTH,5,{
+            friction:0.6,
+            frictionAir:0.08,
+            restitution:0.2,
+            render:{fillStyle:color}
+        });
+        p.player=player;
+        return p;
+    }
+
+    /* ===== 初始布局（小桌面） ===== */
+    pens=[
+        pen(WIDTH*0.25,HEIGHT*0.35,"#2b7cff",1),
+        pen(WIDTH*0.25,HEIGHT*0.65,"#2b7cff",1),
+        pen(WIDTH*0.75,HEIGHT*0.35,"#ff4b4b",2),
+        pen(WIDTH*0.75,HEIGHT*0.65,"#ff4b4b",2)
+    ];
+
+    World.add(engine.world,[...sensors,...pens]);
+
+    setupInput();
+    setupTurns();
+    setupWin();
+}
+
+/* ===== 输入与拉线 ===== */
+function setupInput(){
+    const aim=document.getElementById("aim");
+    const ctx=aim.getContext("2d");
+    let selected=null,sx=0,sy=0;
+
+    render.canvas.onmousedown=e=>{
+        if(waiting) return;
+        if(mode==="ai" && currentPlayer===2) return;
+
+        const r=render.canvas.getBoundingClientRect();
+        sx=e.clientX-r.left;
+        sy=e.clientY-r.top;
+
+        selected=pens.find(p=>
+            p.player===currentPlayer &&
+            Matter.Bounds.contains(p.bounds,{x:sx,y:sy})
+        );
+    };
+
+    render.canvas.onmousemove=e=>{
+        if(!selected) return;
+        const r=render.canvas.getBoundingClientRect();
+        const cx=e.clientX-r.left, cy=e.clientY-r.top;
+        ctx.clearRect(0,0,WIDTH,HEIGHT);
+        ctx.beginPath();
+        ctx.moveTo(sx,sy);
+        ctx.quadraticCurveTo((sx+cx)/2,(sy+cy)/2-25,cx,cy);
+        ctx.setLineDash([6,6]);
+        ctx.stroke();
+    };
+
+    render.canvas.onmouseup=e=>{
+        if(!selected) return;
+        const r=render.canvas.getBoundingClientRect();
+        shoot(selected,sx,sy,e.clientX-r.left,e.clientY-r.top);
+        selected=null;
+        ctx.clearRect(0,0,WIDTH,HEIGHT);
+    };
+}
+
+/* ===== 发射 ===== */
+function shoot(p,sx,sy,ex,ey){
+    const dx=sx-ex, dy=sy-ey;
+    let fx=dx*FORCE_PER_PIXEL;
+    let fy=dy*FORCE_PER_PIXEL;
+    fx=Math.max(-MAX_FORCE,Math.min(MAX_FORCE,fx));
+    fy=Math.max(-MAX_FORCE,Math.min(MAX_FORCE,fy));
+    Body.applyForce(p,p.position,{x:fx,y:fy});
+    Body.setAngularVelocity(p,(ex-p.position.x)*ROTATION_FACTOR);
+    waiting=true;
+}
+
+/* ===== 回合系统 ===== */
+function setupTurns(){
+    Events.on(engine,"afterUpdate",()=>{
+        if(!waiting) return;
+        const moving=pens.some(p=>Math.hypot(p.velocity.x,p.velocity.y)>STOP_SPEED);
+        if(!moving){
+            waiting=false;
+            currentPlayer=currentPlayer===1?2:1;
+            info.textContent=`当前回合：${
+                currentPlayer===1?"玩家 1（蓝色）":
+                (mode==="ai"?"AI（红色）":"玩家 2（红色）")
+            }`;
+            if(mode==="ai" && currentPlayer===2){
+                setTimeout(aiMove,500);
+            }
+        }
+    });
+}
+
+/* ===== AI ===== */
+function aiMove(){
+    const aiPens=pens.filter(p=>p.player===2);
+    const targets=pens.filter(p=>p.player===1);
+    const p=aiPens[Math.floor(Math.random()*aiPens.length)];
+    const t=targets[Math.floor(Math.random()*targets.length)];
+    const ex=p.position.x+(p.position.x-t.position.x)*0.6+(Math.random()-0.5)*30;
+    const ey=p.position.y+(p.position.y-t.position.y)*0.6+(Math.random()-0.5)*30;
+    shoot(p,p.position.x,p.position.y,ex,ey);
+}
+
+/* ===== 胜负 ===== */
+function setupWin(){
+    let over=false;
+    Events.on(engine,"collisionStart",e=>{
+        if(over) return;
+        e.pairs.forEach(pair=>{
+            sensors.forEach(s=>{
+                const p=pair.bodyA===s?pair.bodyB:pair.bodyB===s?pair.bodyA:null;
+                if(p && pens.includes(p)){
+                    over=true;
+                    const w=p.player===1?2:1;
+                    setTimeout(()=>{
+                        alert(`🎉 ${w===1?"玩家 1":"玩家 2 / AI"} 获胜！`);
+                        location.reload();
+                    },80);
+                }
+            });
+        });
+    });
+}
+</script>
+
+</body>
+</html>
