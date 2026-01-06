@@ -2,79 +2,133 @@
 <html lang="zh">
 <head>
 <meta charset="UTF-8">
-<title>x - HTML 托管器</title>
+<title>x · HTML 云托管（覆盖 / 删除）</title>
 <style>
 body {
-  font-family: Arial;
+  font-family: Arial, sans-serif;
   margin: 20px;
+}
+input {
+  width: 260px;
 }
 textarea {
   width: 100%;
-  height: 200px;
+  height: 220px;
 }
-input {
-  width: 300px;
+button {
+  padding: 6px 14px;
+  margin-right: 8px;
 }
 iframe {
   width: 100%;
-  height: 400px;
+  height: 420px;
   border: 1px solid #aaa;
+}
+hr {
+  margin: 30px 0;
 }
 </style>
 </head>
 <body>
 
-<h2>📄 建立网址</h2>
+<h2>📄 建立 / 覆盖网页</h2>
+
+<p>
 网址字符串：
-<input id="name"><br><br>
+<input id="name" placeholder="例如 test">
+</p>
 
-HTML 代码：
-<textarea id="code"></textarea><br>
+<p>HTML 代码（完整 HTML，可直接运行）：</p>
+<textarea id="code" placeholder="粘贴 HTML 代码"></textarea>
 
-<button onclick="save()">建立 / 覆盖</button>
+<p>
+<button onclick="createPage()">建立 / 覆盖</button>
+<button onclick="deletePage()">删除</button>
+</p>
+
+<p id="result"></p>
 
 <hr>
 
-<h2>🔍 查看网址</h2>
-<input id="view">
-<button onclick="openPage()">查看</button>
+<h2>🔍 查看网页</h2>
 
-<hr>
+<p>
+<input id="viewName" placeholder="输入网址字符串">
+<button onclick="viewPage()">查看</button>
+</p>
 
-<h2>▶ 运行结果</h2>
+<h3>▶ 运行结果</h3>
 <iframe id="frame"></iframe>
 
 <script>
-function save() {
-  const name = document.getElementById("name").value.trim();
-  const code = document.getElementById("code").value;
-  if (!name) return alert("请输入网址字符串");
+/*
+==============================
+把这里换成你的云端接口地址
+例如：https://x.workers.dev
+==============================
+*/
+const API_BASE = "https://x.workers.dev";
 
-  localStorage.setItem("page_" + name, code);
-  alert("已建立：x/#/" + name);
-}
+/* 建立 / 覆盖 */
+function createPage() {
+  const name = nameInput().value;
+  const html = codeInput().value;
 
-function openPage() {
-  const s = document.getElementById("view").value.trim();
-  location.hash = "/" + s;
-  load();
-}
-
-function load() {
-  const key = location.hash.replace("#/", "");
-  if (!key) return;
-
-  const code = localStorage.getItem("page_" + key);
-  if (!code) {
-    document.getElementById("frame").srcdoc =
-      "<h1>404</h1><p>不存在的页面</p>";
+  if (!name || !html) {
+    alert("请输入网址字符串和 HTML 代码");
     return;
   }
-  document.getElementById("frame").srcdoc = code;
+
+  fetch(API_BASE + "/create", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, html })
+  })
+  .then(r => r.json())
+  .then(d => {
+    result().innerHTML =
+      `✅ 成功：<a href="${d.url}" target="_blank">${d.url}</a>`;
+  })
+  .catch(() => alert("建立失败"));
 }
 
-window.addEventListener("hashchange", load);
-load();
+/* 删除 */
+function deletePage() {
+  const name = nameInput().value;
+  if (!name) {
+    alert("请输入要删除的网页名");
+    return;
+  }
+
+  if (!confirm("确定删除页面：" + name + " ？")) return;
+
+  fetch(API_BASE + "/delete", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name })
+  })
+  .then(r => r.text())
+  .then(t => {
+    result().innerText = "🗑 已删除：" + name;
+    frame().src = "about:blank";
+  })
+  .catch(() => alert("删除失败"));
+}
+
+/* 查看 */
+function viewPage() {
+  const name = viewNameInput().value;
+  if (!name) return;
+
+  frame().src = API_BASE + "/view/" + name;
+}
+
+/* 简化 DOM */
+function nameInput() { return document.getElementById("name"); }
+function viewNameInput() { return document.getElementById("viewName"); }
+function codeInput() { return document.getElementById("code"); }
+function result() { return document.getElementById("result"); }
+function frame() { return document.getElementById("frame"); }
 </script>
 
 </body>
