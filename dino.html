@@ -74,17 +74,17 @@
     <div class="game-container">
         <canvas id="gameCanvas" width="800" height="200"></canvas>
         <div class="score-panel">
-            <div class="info">🏆 SCORE: <span id="scoreValue">0</span></div>
-            <div class="info">⭐ BEST: <span id="bestValue">0</span></div>
+            <div class="info">SCORE: <span id="scoreValue">0</span></div>
+            <div class="info">BEST: <span id="bestValue">0</span></div>
         </div>
     </div>
 </div>
 
 <script>
     (function(){
-        // ========== 🎮 速度递增参数（无限增长） ==========
+        // ========== 速度递增参数（无限增长） ==========
         const START_SPEED = 220;            // 起始速度 (px/秒)
-        const SPEED_INCREASE_RATE = 6.0;    // 每秒增加速度 (px/秒) → 速度无限增长
+        const SPEED_INCREASE_RATE = 6.0;    // 每秒增加速度 (px/秒)
         // ============================================
         
         // ---------- 画布元素 ----------
@@ -98,7 +98,7 @@
 
         // ---------- 物理参数 ----------
         const GRAVITY = 1400;
-        const JUMP_VELOCITY = -520;    // 跳跃高度足够越过4个紧凑仙人掌
+        const JUMP_VELOCITY = -520;
         
         const GROUND_Y = CANVAS_H - 28;
         
@@ -106,17 +106,16 @@
         const DINO_WIDTH = 28;
         const DINO_STAND_HEIGHT = 40;
         const DINO_CROUCH_HEIGHT = 22;
-        const DINO_STAND_Y = GROUND_Y - DINO_STAND_HEIGHT;   // 132
-        const DINO_CROUCH_Y = GROUND_Y - DINO_CROUCH_HEIGHT; // 150
+        const DINO_STAND_Y = GROUND_Y - DINO_STAND_HEIGHT;
+        const DINO_CROUCH_Y = GROUND_Y - DINO_CROUCH_HEIGHT;
         
-        // 得分速度 (每秒获得分数)
         const SCORE_GAIN_PER_SEC = 48;
         
-        // 基础障碍物生成参数 (随后会乘以1.5~2倍随机密度系数)
+        // 基础障碍物生成参数（随后乘以1.5~2倍密度系数）
         const OBSTACLE_BASE_MIN_INTERVAL = 1.0;
         const OBSTACLE_BASE_MAX_INTERVAL = 2.2;
         
-        // 仙人掌组参数 (紧凑，保证跳跃能过)
+        // 仙人掌组参数
         const MIN_CACTUS_WIDTH = 8;
         const MAX_CACTUS_WIDTH = 14;
         const MIN_CACTUS_HEIGHT = 24;
@@ -188,24 +187,19 @@
             nextObstacleDelay = getRandomInterval();
         }
         
-        // 速度随生存时间线性无限增长
         function updateSpeedByTime(nowSec) {
             if(!gameRunning) return;
             let alive = nowSec - gameStartTime;
             currentSpeed = START_SPEED + alive * SPEED_INCREASE_RATE;
         }
         
-        // 动态生成间隔: 基于速度调整基础间隔，再乘以1.5~2倍随机系数，使障碍物更密集
         function getRandomInterval() {
-            // 速度越快，基础间隔越小 (系数0.35~1.0)
             let speedFactor = Math.max(0.35, 1.0 - (currentSpeed - START_SPEED) / (currentSpeed + 200) * 0.65);
             let minGap = Math.max(0.4, OBSTACLE_BASE_MIN_INTERVAL * speedFactor);
             let maxGap = Math.max(0.7, OBSTACLE_BASE_MAX_INTERVAL * speedFactor);
             let baseGap = minGap + Math.random() * (maxGap - minGap);
-            // 将间隔增大1.5~2倍 (更密集的障碍物)
-            let densityFactor = 1.5 + Math.random() * 0.5;  // 1.5 ~ 2.0
+            let densityFactor = 1.5 + Math.random() * 0.5;
             let finalGap = baseGap * densityFactor;
-            // 最低不低于0.5秒，避免过于极限
             return Math.max(0.5, finalGap);
         }
         
@@ -231,7 +225,6 @@
             }
         }
         
-        // 飞鸟高度范围：站立时碰撞，下蹲时躲避
         function spawnBird() {
             let width = 18 + Math.random() * 8;
             let height = 16 + Math.random() * 8;
@@ -356,7 +349,7 @@
             }
         }
         
-        // ---------- 绘图 (极简无操作提示) ----------
+        // ---------- 绘图（无图标）----------
         function drawGround() {
             ctx.fillStyle = '#8B5A2B';
             ctx.fillRect(0, GROUND_Y - 3, CANVAS_W, 4);
@@ -430,7 +423,6 @@
         }
         
         function drawUI() {
-            // 游戏结束显示
             if(!gameRunning && gameOverFlag) {
                 ctx.font = 'bold 18px "Courier New", monospace';
                 ctx.fillStyle = '#AA3E3E';
@@ -439,15 +431,13 @@
                 ctx.fillStyle = '#3A6EA5';
                 ctx.fillText('按 [上] 或 [确认] 键开始', CANVAS_W/2-90, 110);
             } else if(!gameRunning && !gameOverFlag) {
-                // 未开始时简单提示，无过多文字
                 ctx.font = 'bold 14px "Courier New", monospace';
                 ctx.fillStyle = '#557A46';
                 ctx.fillText('按 ↑ 或 确认键 开始', CANVAS_W/2-85, 70);
             }
-            // 速度显示
             ctx.font = '10px monospace';
             ctx.fillStyle = '#7F8C8D';
-            ctx.fillText(`⚡ ${Math.floor(currentSpeed)} px/s`, CANVAS_W-90, 23);
+            ctx.fillText(Math.floor(currentSpeed) + ' px/s', CANVAS_W-75, 23);
         }
         
         function render() {
@@ -463,7 +453,7 @@
             drawUI();
             ctx.font = 'bold 16px monospace';
             ctx.fillStyle = '#2C3E50';
-            ctx.fillText('🏃 '+Math.floor(score), CANVAS_W-90, 38);
+            ctx.fillText(Math.floor(score).toString(), CANVAS_W-55, 38);
         }
         
         // ---------- 主循环 ----------
@@ -506,7 +496,7 @@
             requestAnimationFrame(animate);
         }
         
-        // ---------- 键盘控制 (无额外说明) ----------
+        // ---------- 键盘控制 ----------
         function handleKeyDown(e) {
             const key = e.key;
             const keyCode = e.keyCode;
