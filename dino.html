@@ -21,8 +21,8 @@
             align-items: center;
             font-family: 'Courier New', 'Monaco', monospace;
             touch-action: manipulation;
-            /* 允许页面滚动，以便左右键滚动 */
             overflow-y: auto;
+            padding: 20px;
         }
 
         .game-container {
@@ -30,7 +30,9 @@
             border-radius: 12px;
             padding: 12px;
             box-shadow: 0 10px 20px rgba(0,0,0,0.3);
-            margin: 20px auto;
+            max-width: 100%;
+            width: fit-content;
+            margin: 0 auto;
         }
 
         canvas {
@@ -39,6 +41,10 @@
             box-shadow: 0 4px 8px rgba(0,0,0,0.1);
             cursor: pointer;
             background-color: #fef9e6;
+            /* 关键：逻辑分辨率固定800x200，CSS自适应宽度 */
+            width: 100%;
+            height: auto;
+            max-width: 100%;
         }
 
         .score-panel {
@@ -46,10 +52,11 @@
             justify-content: space-between;
             align-items: center;
             margin-top: 8px;
+            gap: 12px;
+            flex-wrap: wrap;
         }
 
         .info {
-            margin-top: 0;
             font-size: 14px;
             color: #444;
             font-weight: bold;
@@ -57,17 +64,15 @@
             padding: 6px 12px;
             border-radius: 30px;
             display: inline-block;
-            width: auto;
         }
 
-        /* 适配小屏幕时，让容器宽度自适应 */
-        @media (max-width: 860px) {
-            canvas {
-                width: 100%;
-                height: auto;
+        /* 小屏幕下文字稍小 */
+        @media (max-width: 480px) {
+            .info {
+                font-size: 12px;
+                padding: 4px 8px;
             }
             .game-container {
-                width: 95%;
                 padding: 8px;
             }
         }
@@ -91,7 +96,7 @@
         const SPEED_INCREASE_RATE = 6.0;
         // ============================================
         
-        // ---------- 画布元素 ----------
+        // ---------- 画布元素（逻辑分辨率固定800x200）----------
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         
@@ -499,7 +504,7 @@
         }
         
         // ---------- 键盘控制 ----------
-        // 左右键滚动屏幕（垂直滚动），上/下/确认用于游戏，其他键无干扰
+        // 左右键滚动屏幕（垂直滚动），上/下/确认用于游戏
         function handleKeyDown(e) {
             const key = e.key;
             const keyCode = e.keyCode;
@@ -510,7 +515,7 @@
                 e.preventDefault();
             }
             
-            // 左键：向上滚动屏幕 (便于查看上方内容)
+            // 左键：向上滚动屏幕 (便于在小屏幕上查看上方内容)
             if(key === 'ArrowLeft' || keyCode === 37) {
                 window.scrollBy(0, -80);
                 return;
