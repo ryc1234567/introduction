@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>诺基亚恐龙游戏 - 密集障碍·无限速度·飞鸟需下蹲</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background: #2b2b2b;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Courier New', 'Monaco', monospace;
+            touch-action: manipulation;
+        }
+
+        .game-container {
+            background: #f7f7f7;
+            border-radius: 12px;
+            padding: 12px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+        }
+
+        canvas {
+            display: block;
+            margin: 0 auto;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            cursor: pointer;
+            background-color: #fef9e6;
+        }
+
+        .info {
+            margin-top: 12px;
+            text-align: center;
+            font-size: 14px;
+            color: #444;
+            font-weight: bold;
+            background: #ececec;
+            padding: 6px 12px;
+            border-radius: 30px;
+            display: inline-block;
+            width: auto;
+        }
+
+        .controls {
+            margin-top: 12px;
+            font-size: 11px;
+            color: #3a6ea5;
+            background: #e0e7f0;
+            padding: 6px 12px;
+            border-radius: 20px;
+            text-align: center;
+        }
+
+        .controls span {
+            display: inline-block;
+            margin: 0 8px;
+            background: #333;
+            color: #eee;
+            padding: 2px 8px;
+            border-radius: 20px;
+            font-weight: bold;
+        }
+
+        @media (max-width: 860px) {
+            canvas {
+                width: 100%;
+                height: auto;
+            }
+            .game-container {
+                width: 95%;
+                padding: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+<div>
+    <div class="game-container">
+        <canvas id="gameCanvas" width="800" height="200"></canvas>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
+            <div class="info">🏆 SCORE: <span id="scoreValue">0</span></div>
+            <div class="info">⭐ BEST: <span id="bestValue">0</span></div>
+        </div>
+        <div class="controls">
+            🎮 诺基亚专用键位 &nbsp;|&nbsp; <span>⬆️ 上</span> 跳跃 &nbsp;|&nbsp; <span>⬇️ 下</span> 下蹲 &nbsp;|&nbsp; <span>✅ 确认键</span> 重开
+        </div>
+    </div>
+</div>
+
+<script>
+    (function(){
+        // ========== 🎮 速度递增参数（无限增长） ==========
+        const START_SPEED = 220;            // 起始速度 (px/秒)
+        const SPEED_INCREASE_RATE = 6.0;    // 每秒增加速度 (px/秒) → 速度无限增长
+        // ============================================
+        
+        // ---------- 画布元素 ----------
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        const CANVAS_W = 800;
+        const CANVAS_H = 200;
+        canvas.width = CANVAS_W;
+        canvas.height = CANVAS_H;
+
+        // ---------- 物理参数 ----------
+        const GRAVITY = 1400;
+        const JUMP_VELOCITY = -520;    // 跳跃高度足够越过密集仙人掌
+        
+        const GROUND_Y = CANVAS_H - 28;
+        
+        const DINO_X = 70;
+        const DINO_WIDTH = 28;
+        const DINO_STAND_HEIGHT = 40;
+        const DINO_CROUCH_HEIGHT = 22;
+        const DINO_STAND_Y = GROUND_Y - DINO_STAND_HEIGHT;   // 132
+        const DINO_CROUCH_Y = GROUND_Y - DINO_CROUCH_HEIGHT; // 150
+        
+        const SCORE_GAIN_PER_SEC = 48;   // 得分速度
+        
+        // 障碍物生成参数 ———— 更密集
+        const OBSTACLE_MIN_INTERVAL = 0.45;   // 最小生成间隔(秒) 原来1.0 → 0.45
+        const OBSTACLE_MAX_INTERVAL = 0.85;   // 最大生成间隔(秒) 原来2.2 → 0.85
+        
+        // 仙人掌组参数 (更紧凑，间隙更小)
+        const MIN_CACTUS_WIDTH = 6;        // 宽度更窄 8→6
+        const MAX_CACTUS_WIDTH = 12;       // 14→12
+        const MIN_CACTUS_HEIGHT = 22;      // 高度稍降 24→22
+        const MAX_CACTUS_HEIGHT = 32;      // 34→32
+        const MIN_CACTUS_GAP = 2;          // 仙人掌之间最小间隙(px) 4→2
+        const MAX_CACTUS_GAP = 5;          // 最大间隙 8→5
+        
+        // ---------- 全局状态 ----------
+        let gameRunning = false;
+        let gameOverFlag = false;
+        
+        let dinoY = DINO_STAND_Y;
+        let dinoVy = 0;
+        let isOnGround = true;
+        let isCrouching = false;
+        
+        let currentSpeed = START_SPEED;
+        let score = 0;
+        let bestScore = 0;
+        let obstacles = [];
+        
+        let lastFrameTime = 0;
+        let lastObstacleSpawn = 0;
+        let nextObstacleDelay = 0.5;
+        let gameStartTime = 0;
+        
+        // ---------- 辅助函数 ----------
+        function loadBestScore() {
+            try {
+                const stored = localStorage.getItem('dinoBestScoreNokia');
+                if(stored && !isNaN(parseInt(stored))) {
+                    bestScore = parseInt(stored);
+                } else {
+                    bestScore = 0;
+                }
+            } catch(e) { bestScore = 0; }
+            document.getElementById('bestValue').innerText = bestScore;
+        }
+        
+        function saveBestScore() {
+            if(score > bestScore) {
+                bestScore = score;
+                document.getElementById('bestValue').innerText = bestScore;
+                try {
+                    localStorage.setItem('dinoBestScoreNokia', bestScore);
+                } catch(e) {}
+            }
+        }
+        
+        function updateScoreUI() {
+            document.getElementById('scoreValue').innerText = Math.floor(score);
+        }
+        
+        function resetGame() {
+            dinoY = DINO_STAND_Y;
+            dinoVy = 0;
+            isOnGround = true;
+            isCrouching = false;
+            score = 0;
+            updateScoreUI();
+            obstacles = [];
+            gameOverFlag = false;
+            gameRunning = true;
+            
+            const nowSec = performance.now() / 1000;
+            lastObstacleSpawn = nowSec;
+            gameStartTime = nowSec;
+            currentSpeed = START_SPEED;
+            nextObstacleDelay = getRandomInterval();
+        }
+        
+        // 速度随生存时间线性无限增长
+        function updateSpeedByTime(nowSec) {
+            if(!gameRunning) return;
+            let alive = nowSec - gameStartTime;
+            currentSpeed = START_SPEED + alive * SPEED_INCREASE_RATE;
+        }
+        
+        // 动态生成间隔 (速度越快间隔越短，最低0.25秒)
+        function getRandomInterval() {
+            let speedFactor = Math.max(0.35, 1.0 - (currentSpeed - START_SPEED) / (currentSpeed + 200) * 0.65);
+            let minGap = Math.max(0.25, OBSTACLE_MIN_INTERVAL * speedFactor);
+            let maxGap = Math.max(0.45, OBSTACLE_MAX_INTERVAL * speedFactor);
+            return minGap + Math.random() * (maxGap - minGap);
+        }
+        
+        // ---------- 障碍物生成 (更密集) ----------
+        function spawnCactusGroup() {
+            // 增加仙人掌数量范围: 1~5 个 (原1~4)
+            const cactusCount = Math.floor(Math.random() * 5) + 1;
+            let currentX = CANVAS_W;
+            for(let i = 0; i < cactusCount; i++) {
+                let width = MIN_CACTUS_WIDTH + Math.random() * (MAX_CACTUS_WIDTH - MIN_CACTUS_WIDTH);
+                let height = MIN_CACTUS_HEIGHT + Math.random() * (MAX_CACTUS_HEIGHT - MIN_CACTUS_HEIGHT);
+                width = Math.min(MAX_CACTUS_WIDTH, Math.max(MIN_CACTUS_WIDTH, width));
+                height = Math.min(MAX_CACTUS_HEIGHT, Math.max(MIN_CACTUS_HEIGHT, height));
+                const yPos = GROUND_Y - height;
+                obstacles.push({
+                    x: currentX,
+                    y: yPos,
+                    width: width,
+                    height: height,
+                    type: 'cactus'
+                });
+                const gap = MIN_CACTUS_GAP + Math.random() * (MAX_CACTUS_GAP - MIN_CACTUS_GAP);
+                currentX += width + gap;
+            }
+        }
+        
+        // 飞鸟高度范围：站立时碰撞，下蹲时躲避
+        function spawnBird() {
+            let width = 16 + Math.random() * 8;   // 略小 18→16
+            let height = 14 + Math.random() * 8;  // 16→14
+            // 底部在 145~155 之间，确保站立碰撞，下蹲躲避
+            let targetBottomMin = 145;
+            let targetBottomMax = 155;
+            let yMin = targetBottomMin - height;
+            let yMax = targetBottomMax - height;
+            yMin = Math.max(85, yMin);
+            yMax = Math.min(GROUND_Y - height - 2, yMax);
+            if (yMin > yMax) yMin = yMax;
+            let yPos = yMin + Math.random() * (yMax - yMin);
+            obstacles.push({
+                x: CANVAS_W,
+                y: yPos,
+                width: width,
+                height: height,
+                type: 'bird'
+            });
+        }
+        
+        function spawnObstacle() {
+            // 提高飞鸟出现概率 35% -> 45% 让下蹲更频繁
+            if(Math.random() < 0.55) {   // 55%仙人掌组，45%飞鸟 (原65/35)
+                spawnCactusGroup();
+            } else {
+                spawnBird();
+            }
+        }
+        
+        // ---------- 更新逻辑 ----------
+        function updateObstacles(dtSec) {
+            for(let i=0; i<obstacles.length; i++) {
+                obstacles[i].x -= currentSpeed * dtSec;
+            }
+            obstacles = obstacles.filter(obs => obs.x + obs.width > 0);
+        }
+        
+        function getDinoCollisionRect() {
+            let actualY = dinoY;
+            let actualHeight = (isCrouching && isOnGround && !gameOverFlag) ? DINO_CROUCH_HEIGHT : DINO_STAND_HEIGHT;
+            if(!isOnGround) {
+                actualHeight = DINO_STAND_HEIGHT;
+            } else {
+                if(isCrouching) {
+                    actualY = DINO_CROUCH_Y;
+                } else {
+                    actualY = DINO_STAND_Y;
+                }
+            }
+            return {
+                x: DINO_X,
+                y: actualY,
+                w: DINO_WIDTH,
+                h: actualHeight
+            };
+        }
+        
+        function checkCollisions() {
+            const dinoRect = getDinoCollisionRect();
+            for(let obs of obstacles) {
+                const obsRect = {
+                    x: obs.x,
+                    y: obs.y,
+                    w: obs.width,
+                    h: obs.height
+                };
+                if(dinoRect.x < obsRect.x + obsRect.w &&
+                    dinoRect.x + dinoRect.w > obsRect.x &&
+                    dinoRect.y < obsRect.y + obsRect.h &&
+                    dinoRect.y + dinoRect.h > obsRect.y) {
+                    // 下蹲躲飞鸟
+                    if(isCrouching && isOnGround && obs.type === 'bird') {
+                        continue;
+                    }
+                    return true;
+                }
+            }
+            return false;
+        }
+        
+        function updatePhysics(dtSec) {
+            if(!gameRunning) return;
+            dinoVy += GRAVITY * dtSec;
+            dinoY += dinoVy * dtSec;
+            
+            let groundLimitY;
+            if(isCrouching && isOnGround && !gameOverFlag) {
+                groundLimitY = DINO_CROUCH_Y;
+            } else {
+                groundLimitY = DINO_STAND_Y;
+            }
+            
+            if(dinoY >= groundLimitY) {
+                dinoY = groundLimitY;
+                dinoVy = 0;
+                isOnGround = true;
+                if(isCrouching) {
+                    dinoY = DINO_CROUCH_Y;
+                } else {
+                    dinoY = DINO_STAND_Y;
+                }
+            } else {
+                isOnGround = false;
+            }
+            
+            if(isOnGround && isCrouching) dinoY = DINO_CROUCH_Y;
+            else if(isOnGround && !isCrouching) dinoY = DINO_STAND_Y;
+        }
+        
+        function updateScore(dtSec) {
+            if(!gameRunning) return;
+            score += SCORE_GAIN_PER_SEC * dtSec;
+            updateScoreUI();
+            saveBestScore();
+        }
+        
+        function updateObstacleSpawning(nowSec) {
+            if(!gameRunning) return;
+            const elapsed = nowSec - lastObstacleSpawn;
+            if(elapsed >= nextObstacleDelay) {
+                spawnObstacle();
+                lastObstacleSpawn = nowSec;
+                nextObstacleDelay = getRandomInterval();
+            }
+        }
+        
+        // ---------- 绘图 ----------
+        function drawGround() {
+            ctx.fillStyle = '#8B5A2B';
+            ctx.fillRect(0, GROUND_Y - 3, CANVAS_W, 4);
+            ctx.fillStyle = '#C79A6E';
+            ctx.fillRect(0, GROUND_Y - 1, CANVAS_W, 3);
+            ctx.fillStyle = '#5C3E1E';
+            ctx.fillRect(0, GROUND_Y + 1, CANVAS_W, 2);
+        }
+        
+        function drawDino() {
+            let dinoH, dinoYDraw, isCrouchDraw;
+            if(gameRunning && isCrouching && isOnGround) {
+                dinoH = DINO_CROUCH_HEIGHT;
+                dinoYDraw = DINO_CROUCH_Y;
+                isCrouchDraw = true;
+            } else {
+                dinoH = DINO_STAND_HEIGHT;
+                dinoYDraw = (gameRunning ? dinoY : DINO_STAND_Y);
+                isCrouchDraw = false;
+            }
+            if(!gameRunning && !gameOverFlag) {
+                dinoH = DINO_STAND_HEIGHT;
+                dinoYDraw = DINO_STAND_Y;
+            }
+            
+            ctx.fillStyle = '#2c2c2c';
+            ctx.fillRect(DINO_X, dinoYDraw, DINO_WIDTH, dinoH);
+            ctx.fillStyle = '#FFFFFF';
+            let eyeX = DINO_X + DINO_WIDTH - 8;
+            let eyeY = dinoYDraw + (isCrouchDraw ? 6 : 12);
+            ctx.fillRect(eyeX, eyeY, 5, 5);
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(eyeX+2, eyeY+1, 2, 3);
+            if(!isCrouchDraw || !isOnGround) {
+                ctx.fillStyle = '#3E6B3E';
+                for(let i=0;i<3;i++) {
+                    ctx.fillRect(DINO_X + 5 + i*7, dinoYDraw - 3, 3, 5);
+                }
+            }
+            if(isCrouchDraw && isOnGround && gameRunning) {
+                ctx.fillStyle = '#4A3827';
+                ctx.fillRect(DINO_X + 4, dinoYDraw + 3, 5, 5);
+                ctx.fillRect(DINO_X + 18, dinoYDraw + 3, 5, 5);
+            }
+        }
+        
+        function drawObstacles() {
+            for(let obs of obstacles) {
+                if(obs.type === 'cactus') {
+                    ctx.fillStyle = '#2F6B2F';
+                    ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+                    ctx.fillStyle = '#1F4F1F';
+                    let spikes = Math.floor(obs.width / 5) + 1;
+                    for(let i=0; i<spikes; i++) {
+                        ctx.fillRect(obs.x + 3 + i*5, obs.y - 3, 3, 5);
+                    }
+                    ctx.fillStyle = '#B87333';
+                    ctx.fillRect(obs.x+3, obs.y+obs.height-8, 5, 6);
+                } else {
+                    ctx.fillStyle = '#5C5C5C';
+                    ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+                    ctx.fillStyle = '#E0B058';
+                    ctx.fillRect(obs.x+4, obs.y+4, 6, 6);
+                    ctx.fillStyle = '#000';
+                    ctx.fillRect(obs.x+obs.width-8, obs.y+8, 4, 4);
+                    ctx.fillStyle = '#7C7C7C';
+                    ctx.fillRect(obs.x-4, obs.y+6, 6, 8);
+                    ctx.fillRect(obs.x+obs.width-2, obs.y+6, 6, 8);
+                }
+            }
+        }
+        
+        function drawUI() {
+            if(!gameRunning && gameOverFlag) {
+                ctx.font = 'bold 18px "Courier New", monospace';
+                ctx.fillStyle = '#AA3E3E';
+                ctx.fillText('GAME OVER', CANVAS_W/2-70, 70);
+                ctx.font = '12px monospace';
+                ctx.fillStyle = '#3A6EA5';
+                ctx.fillText('按 [确认键] 或 [上] 重新开始', CANVAS_W/2-110, 110);
+            } else if(!gameRunning && !gameOverFlag) {
+                ctx.font = 'bold 15px "Courier New"';
+                ctx.fillStyle = '#557A46';
+                ctx.fillText('⚡ 按 [上] 或 [确认] 奔跑 ⚡', CANVAS_W/2-135, 70);
+                ctx.font = '12px monospace';
+                ctx.fillStyle = '#704C3A';
+                ctx.fillText('上键跳跃  下键下蹲躲飞鸟', CANVAS_W/2-115, 105);
+            }
+            ctx.font = '10px monospace';
+            ctx.fillStyle = '#7F8C8D';
+            ctx.fillText(`⚡ ${Math.floor(currentSpeed)} px/s`, CANVAS_W-100, 23);
+        }
+        
+        function render() {
+            ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+            const grad = ctx.createLinearGradient(0,0,0,GROUND_Y);
+            grad.addColorStop(0,'#FDE8C8');
+            grad.addColorStop(1,'#F7D9A0');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0,0,CANVAS_W,GROUND_Y);
+            drawGround();
+            drawObstacles();
+            drawDino();
+            drawUI();
+            ctx.font = 'bold 16px monospace';
+            ctx.fillStyle = '#2C3E50';
+            ctx.fillText('🏃 '+Math.floor(score), CANVAS_W-90, 38);
+        }
+        
+        // ---------- 主循环 ----------
+        function gameUpdate(nowSec) {
+            if(!gameRunning) {
+                render();
+                return;
+            }
+            if(lastFrameTime === 0) {
+                lastFrameTime = nowSec;
+                render();
+                return;
+            }
+            let dt = Math.min(0.033, nowSec - lastFrameTime);
+            if(dt <= 0) {
+                render();
+                return;
+            }
+            
+            updateSpeedByTime(nowSec);
+            updatePhysics(dt);
+            updateObstacles(dt);
+            updateScore(dt);
+            updateObstacleSpawning(nowSec);
+            
+            if(checkCollisions()) {
+                gameRunning = false;
+                gameOverFlag = true;
+                saveBestScore();
+                render();
+                return;
+            }
+            render();
+        }
+        
+        function animate(timestampMs) {
+            const nowSec = timestampMs / 1000;
+            gameUpdate(nowSec);
+            lastFrameTime = nowSec;
+            requestAnimationFrame(animate);
+        }
+        
+        // ---------- 键盘控制 ----------
+        function handleKeyDown(e) {
+            const key = e.key;
+            const keyCode = e.keyCode;
+            if(keyCode === 38 || keyCode === 40 || keyCode === 37 || keyCode === 39 || keyCode === 13 || key === 'ArrowUp' || key === 'ArrowDown' || key === 'ArrowLeft' || key === 'ArrowRight' || key === 'Enter' || key === ' ') {
+                e.preventDefault();
+            }
+            if(key === 'ArrowUp' || keyCode === 38 || key === ' ' || key === 'Space') {
+                if(!gameRunning) {
+                    resetGame();
+                    return;
+                }
+                if(gameRunning && isOnGround) {
+                    dinoVy = JUMP_VELOCITY;
+                    isOnGround = false;
+                    if(isCrouching) {
+                        isCrouching = false;
+                        dinoY = DINO_STAND_Y;
+                    }
+                }
+                return;
+            }
+            if(key === 'ArrowDown' || keyCode === 40) {
+                if(!gameRunning) return;
+                if(gameRunning && isOnGround && !isCrouching) {
+                    isCrouching = true;
+                    dinoY = DINO_CROUCH_Y;
+                }
+                return;
+            }
+            if(key === 'Enter' || keyCode === 13) {
+                resetGame();
+                return;
+            }
+        }
+        
+        function handleKeyUp(e) {
+            const key = e.key;
+            const keyCode = e.keyCode;
+            if(keyCode === 38 || keyCode === 40 || keyCode === 37 || keyCode === 39 || keyCode === 13 || key === 'ArrowUp' || key === 'ArrowDown' || key === 'ArrowLeft' || key === 'ArrowRight' || key === 'Enter') {
+                e.preventDefault();
+            }
+            if((key === 'ArrowDown' || keyCode === 40) && gameRunning && isOnGround && isCrouching) {
+                isCrouching = false;
+                dinoY = DINO_STAND_Y;
+            }
+        }
+        
+        window.addEventListener('keydown', handleKeyDown);
+        window.addEventListener('keyup', handleKeyUp);
+        
+        // 初始化
+        gameRunning = false;
+        gameOverFlag = false;
+        isCrouching = false;
+        dinoY = DINO_STAND_Y;
+        obstacles = [];
+        score = 0;
+        currentSpeed = START_SPEED;
+        loadBestScore();
+        updateScoreUI();
+        
+        animate(performance.now());
+        
+        canvas.addEventListener('click', () => {
+            if(!gameRunning) resetGame();
+        });
+    })();
+</script>
+</body>
+</html>
