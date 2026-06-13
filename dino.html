@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>诺基亚恐龙游戏 - 密集障碍·无限速度·飞鸟需下蹲</title>
+    <title>诺基亚恐龙游戏</title>
     <style>
         * {
             margin: 0;
@@ -38,9 +38,15 @@
             background-color: #fef9e6;
         }
 
+        .score-panel {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 8px;
+        }
+
         .info {
-            margin-top: 12px;
-            text-align: center;
+            margin-top: 0;
             font-size: 14px;
             color: #444;
             font-weight: bold;
@@ -49,26 +55,6 @@
             border-radius: 30px;
             display: inline-block;
             width: auto;
-        }
-
-        .controls {
-            margin-top: 12px;
-            font-size: 11px;
-            color: #3a6ea5;
-            background: #e0e7f0;
-            padding: 6px 12px;
-            border-radius: 20px;
-            text-align: center;
-        }
-
-        .controls span {
-            display: inline-block;
-            margin: 0 8px;
-            background: #333;
-            color: #eee;
-            padding: 2px 8px;
-            border-radius: 20px;
-            font-weight: bold;
         }
 
         @media (max-width: 860px) {
@@ -87,12 +73,9 @@
 <div>
     <div class="game-container">
         <canvas id="gameCanvas" width="800" height="200"></canvas>
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
+        <div class="score-panel">
             <div class="info">🏆 SCORE: <span id="scoreValue">0</span></div>
             <div class="info">⭐ BEST: <span id="bestValue">0</span></div>
-        </div>
-        <div class="controls">
-            🎮 诺基亚专用键位 &nbsp;|&nbsp; <span>⬆️ 上</span> 跳跃 &nbsp;|&nbsp; <span>⬇️ 下</span> 下蹲 &nbsp;|&nbsp; <span>✅ 确认键</span> 重开
         </div>
     </div>
 </div>
@@ -115,7 +98,7 @@
 
         // ---------- 物理参数 ----------
         const GRAVITY = 1400;
-        const JUMP_VELOCITY = -520;    // 跳跃高度足够越过密集仙人掌
+        const JUMP_VELOCITY = -520;    // 跳跃高度足够越过4个紧凑仙人掌
         
         const GROUND_Y = CANVAS_H - 28;
         
@@ -126,19 +109,20 @@
         const DINO_STAND_Y = GROUND_Y - DINO_STAND_HEIGHT;   // 132
         const DINO_CROUCH_Y = GROUND_Y - DINO_CROUCH_HEIGHT; // 150
         
-        const SCORE_GAIN_PER_SEC = 48;   // 得分速度
+        // 得分速度 (每秒获得分数)
+        const SCORE_GAIN_PER_SEC = 48;
         
-        // 障碍物生成参数 ———— 更密集
-        const OBSTACLE_MIN_INTERVAL = 0.45;   // 最小生成间隔(秒) 原来1.0 → 0.45
-        const OBSTACLE_MAX_INTERVAL = 0.85;   // 最大生成间隔(秒) 原来2.2 → 0.85
+        // 基础障碍物生成参数 (随后会乘以1.5~2倍随机密度系数)
+        const OBSTACLE_BASE_MIN_INTERVAL = 1.0;
+        const OBSTACLE_BASE_MAX_INTERVAL = 2.2;
         
-        // 仙人掌组参数 (更紧凑，间隙更小)
-        const MIN_CACTUS_WIDTH = 6;        // 宽度更窄 8→6
-        const MAX_CACTUS_WIDTH = 12;       // 14→12
-        const MIN_CACTUS_HEIGHT = 22;      // 高度稍降 24→22
-        const MAX_CACTUS_HEIGHT = 32;      // 34→32
-        const MIN_CACTUS_GAP = 2;          // 仙人掌之间最小间隙(px) 4→2
-        const MAX_CACTUS_GAP = 5;          // 最大间隙 8→5
+        // 仙人掌组参数 (紧凑，保证跳跃能过)
+        const MIN_CACTUS_WIDTH = 8;
+        const MAX_CACTUS_WIDTH = 14;
+        const MIN_CACTUS_HEIGHT = 24;
+        const MAX_CACTUS_HEIGHT = 34;
+        const MIN_CACTUS_GAP = 4;
+        const MAX_CACTUS_GAP = 8;
         
         // ---------- 全局状态 ----------
         let gameRunning = false;
@@ -156,7 +140,7 @@
         
         let lastFrameTime = 0;
         let lastObstacleSpawn = 0;
-        let nextObstacleDelay = 0.5;
+        let nextObstacleDelay = 1.5;
         let gameStartTime = 0;
         
         // ---------- 辅助函数 ----------
@@ -211,18 +195,23 @@
             currentSpeed = START_SPEED + alive * SPEED_INCREASE_RATE;
         }
         
-        // 动态生成间隔 (速度越快间隔越短，最低0.25秒)
+        // 动态生成间隔: 基于速度调整基础间隔，再乘以1.5~2倍随机系数，使障碍物更密集
         function getRandomInterval() {
+            // 速度越快，基础间隔越小 (系数0.35~1.0)
             let speedFactor = Math.max(0.35, 1.0 - (currentSpeed - START_SPEED) / (currentSpeed + 200) * 0.65);
-            let minGap = Math.max(0.25, OBSTACLE_MIN_INTERVAL * speedFactor);
-            let maxGap = Math.max(0.45, OBSTACLE_MAX_INTERVAL * speedFactor);
-            return minGap + Math.random() * (maxGap - minGap);
+            let minGap = Math.max(0.4, OBSTACLE_BASE_MIN_INTERVAL * speedFactor);
+            let maxGap = Math.max(0.7, OBSTACLE_BASE_MAX_INTERVAL * speedFactor);
+            let baseGap = minGap + Math.random() * (maxGap - minGap);
+            // 将间隔增大1.5~2倍 (更密集的障碍物)
+            let densityFactor = 1.5 + Math.random() * 0.5;  // 1.5 ~ 2.0
+            let finalGap = baseGap * densityFactor;
+            // 最低不低于0.5秒，避免过于极限
+            return Math.max(0.5, finalGap);
         }
         
-        // ---------- 障碍物生成 (更密集) ----------
+        // ---------- 障碍物生成 ----------
         function spawnCactusGroup() {
-            // 增加仙人掌数量范围: 1~5 个 (原1~4)
-            const cactusCount = Math.floor(Math.random() * 5) + 1;
+            const cactusCount = Math.floor(Math.random() * 4) + 1;
             let currentX = CANVAS_W;
             for(let i = 0; i < cactusCount; i++) {
                 let width = MIN_CACTUS_WIDTH + Math.random() * (MAX_CACTUS_WIDTH - MIN_CACTUS_WIDTH);
@@ -244,9 +233,8 @@
         
         // 飞鸟高度范围：站立时碰撞，下蹲时躲避
         function spawnBird() {
-            let width = 16 + Math.random() * 8;   // 略小 18→16
-            let height = 14 + Math.random() * 8;  // 16→14
-            // 底部在 145~155 之间，确保站立碰撞，下蹲躲避
+            let width = 18 + Math.random() * 8;
+            let height = 16 + Math.random() * 8;
             let targetBottomMin = 145;
             let targetBottomMax = 155;
             let yMin = targetBottomMin - height;
@@ -265,8 +253,7 @@
         }
         
         function spawnObstacle() {
-            // 提高飞鸟出现概率 35% -> 45% 让下蹲更频繁
-            if(Math.random() < 0.55) {   // 55%仙人掌组，45%飞鸟 (原65/35)
+            if(Math.random() < 0.65) {
                 spawnCactusGroup();
             } else {
                 spawnBird();
@@ -314,7 +301,6 @@
                     dinoRect.x + dinoRect.w > obsRect.x &&
                     dinoRect.y < obsRect.y + obsRect.h &&
                     dinoRect.y + dinoRect.h > obsRect.y) {
-                    // 下蹲躲飞鸟
                     if(isCrouching && isOnGround && obs.type === 'bird') {
                         continue;
                     }
@@ -370,7 +356,7 @@
             }
         }
         
-        // ---------- 绘图 ----------
+        // ---------- 绘图 (极简无操作提示) ----------
         function drawGround() {
             ctx.fillStyle = '#8B5A2B';
             ctx.fillRect(0, GROUND_Y - 3, CANVAS_W, 4);
@@ -444,24 +430,24 @@
         }
         
         function drawUI() {
+            // 游戏结束显示
             if(!gameRunning && gameOverFlag) {
                 ctx.font = 'bold 18px "Courier New", monospace';
                 ctx.fillStyle = '#AA3E3E';
                 ctx.fillText('GAME OVER', CANVAS_W/2-70, 70);
                 ctx.font = '12px monospace';
                 ctx.fillStyle = '#3A6EA5';
-                ctx.fillText('按 [确认键] 或 [上] 重新开始', CANVAS_W/2-110, 110);
+                ctx.fillText('按 [上] 或 [确认] 键开始', CANVAS_W/2-90, 110);
             } else if(!gameRunning && !gameOverFlag) {
-                ctx.font = 'bold 15px "Courier New"';
+                // 未开始时简单提示，无过多文字
+                ctx.font = 'bold 14px "Courier New", monospace';
                 ctx.fillStyle = '#557A46';
-                ctx.fillText('⚡ 按 [上] 或 [确认] 奔跑 ⚡', CANVAS_W/2-135, 70);
-                ctx.font = '12px monospace';
-                ctx.fillStyle = '#704C3A';
-                ctx.fillText('上键跳跃  下键下蹲躲飞鸟', CANVAS_W/2-115, 105);
+                ctx.fillText('按 ↑ 或 确认键 开始', CANVAS_W/2-85, 70);
             }
+            // 速度显示
             ctx.font = '10px monospace';
             ctx.fillStyle = '#7F8C8D';
-            ctx.fillText(`⚡ ${Math.floor(currentSpeed)} px/s`, CANVAS_W-100, 23);
+            ctx.fillText(`⚡ ${Math.floor(currentSpeed)} px/s`, CANVAS_W-90, 23);
         }
         
         function render() {
@@ -520,7 +506,7 @@
             requestAnimationFrame(animate);
         }
         
-        // ---------- 键盘控制 ----------
+        // ---------- 键盘控制 (无额外说明) ----------
         function handleKeyDown(e) {
             const key = e.key;
             const keyCode = e.keyCode;
