@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>诺基亚恐龙游戏</title>
     <style>
         * {
@@ -21,6 +21,8 @@
             align-items: center;
             font-family: 'Courier New', 'Monaco', monospace;
             touch-action: manipulation;
+            /* 允许页面滚动，以便左右键滚动 */
+            overflow-y: auto;
         }
 
         .game-container {
@@ -28,6 +30,7 @@
             border-radius: 12px;
             padding: 12px;
             box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+            margin: 20px auto;
         }
 
         canvas {
@@ -57,6 +60,7 @@
             width: auto;
         }
 
+        /* 适配小屏幕时，让容器宽度自适应 */
         @media (max-width: 860px) {
             canvas {
                 width: 100%;
@@ -83,8 +87,8 @@
 <script>
     (function(){
         // ========== 速度递增参数（无限增长） ==========
-        const START_SPEED = 220;            // 起始速度 (px/秒)
-        const SPEED_INCREASE_RATE = 6.0;    // 每秒增加速度 (px/秒)
+        const START_SPEED = 220;
+        const SPEED_INCREASE_RATE = 6.0;
         // ============================================
         
         // ---------- 画布元素 ----------
@@ -111,11 +115,9 @@
         
         const SCORE_GAIN_PER_SEC = 48;
         
-        // 基础障碍物生成参数（随后乘以1.5~2倍密度系数）
         const OBSTACLE_BASE_MIN_INTERVAL = 1.0;
         const OBSTACLE_BASE_MAX_INTERVAL = 2.2;
         
-        // 仙人掌组参数
         const MIN_CACTUS_WIDTH = 8;
         const MAX_CACTUS_WIDTH = 14;
         const MIN_CACTUS_HEIGHT = 24;
@@ -497,12 +499,29 @@
         }
         
         // ---------- 键盘控制 ----------
+        // 左右键滚动屏幕（垂直滚动），上/下/确认用于游戏，其他键无干扰
         function handleKeyDown(e) {
             const key = e.key;
             const keyCode = e.keyCode;
-            if(keyCode === 38 || keyCode === 40 || keyCode === 37 || keyCode === 39 || keyCode === 13 || key === 'ArrowUp' || key === 'ArrowDown' || key === 'ArrowLeft' || key === 'ArrowRight' || key === 'Enter' || key === ' ') {
+            
+            // 阻止方向键和回车键的默认页面滚动/刷新行为
+            if(keyCode === 38 || keyCode === 40 || keyCode === 37 || keyCode === 39 || keyCode === 13 || 
+               key === 'ArrowUp' || key === 'ArrowDown' || key === 'ArrowLeft' || key === 'ArrowRight' || key === 'Enter' || key === ' ') {
                 e.preventDefault();
             }
+            
+            // 左键：向上滚动屏幕 (便于查看上方内容)
+            if(key === 'ArrowLeft' || keyCode === 37) {
+                window.scrollBy(0, -80);
+                return;
+            }
+            // 右键：向下滚动屏幕
+            if(key === 'ArrowRight' || keyCode === 39) {
+                window.scrollBy(0, 80);
+                return;
+            }
+            
+            // 上键 / 空格：跳跃或开始
             if(key === 'ArrowUp' || keyCode === 38 || key === ' ' || key === 'Space') {
                 if(!gameRunning) {
                     resetGame();
@@ -518,6 +537,8 @@
                 }
                 return;
             }
+            
+            // 下键：下蹲
             if(key === 'ArrowDown' || keyCode === 40) {
                 if(!gameRunning) return;
                 if(gameRunning && isOnGround && !isCrouching) {
@@ -526,6 +547,8 @@
                 }
                 return;
             }
+            
+            // 确认键 (Enter) 重置游戏
             if(key === 'Enter' || keyCode === 13) {
                 resetGame();
                 return;
@@ -535,9 +558,11 @@
         function handleKeyUp(e) {
             const key = e.key;
             const keyCode = e.keyCode;
-            if(keyCode === 38 || keyCode === 40 || keyCode === 37 || keyCode === 39 || keyCode === 13 || key === 'ArrowUp' || key === 'ArrowDown' || key === 'ArrowLeft' || key === 'ArrowRight' || key === 'Enter') {
+            if(keyCode === 38 || keyCode === 40 || keyCode === 37 || keyCode === 39 || keyCode === 13 || 
+               key === 'ArrowUp' || key === 'ArrowDown' || key === 'ArrowLeft' || key === 'ArrowRight' || key === 'Enter') {
                 e.preventDefault();
             }
+            // 下蹲释放
             if((key === 'ArrowDown' || keyCode === 40) && gameRunning && isOnGround && isCrouching) {
                 isCrouching = false;
                 dinoY = DINO_STAND_Y;
